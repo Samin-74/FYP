@@ -1,0 +1,33 @@
+import data.processed
+import modules.quantize
+
+# FYP smoke-run config: classic Amazon Beauty 5-core.
+# Mirrors RQ-VAE-Recommender-main/configs/rqvae_amazon.gin with:
+#   - dataset cache + checkpoints redirected into FYP/artifacts/ (upstream tree untouched)
+#   - wandb disabled
+#   - reduced iterations for a local smoke run (raise to 400000 for the real run)
+
+train.iterations=2000
+train.learning_rate=0.001
+train.weight_decay=0.0001
+train.batch_size=640
+train.vae_input_dim=768
+train.vae_n_cat_feats=0
+train.vae_hidden_dims=[512, 256, 128]
+train.vae_embed_dim=32
+train.vae_codebook_size=256
+train.vae_codebook_normalize=False
+train.vae_sim_vq=False
+train.save_model_every=1000
+train.eval_every=1000
+train.dataset_folder="artifacts/dataset/amazon"
+train.dataset=%data.processed.RecDataset.AMAZON
+train.save_dir_root="artifacts/checkpoints/rqvae/amazon/"
+train.wandb_logging=False
+train.commitment_weight=0.25
+train.vae_n_layers=3
+train.vae_codebook_mode=%modules.quantize.QuantizeForwardMode.STE
+train.force_dataset_process=False
+train.dataset_split="beauty"
+train.do_eval=True
+train.use_kmeans_init=True

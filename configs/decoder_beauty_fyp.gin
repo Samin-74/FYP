@@ -1,0 +1,35 @@
+import data.processed
+
+# FYP smoke-run config: T5 decoder on classic Amazon Beauty 5-core.
+# Mirrors RQ-VAE-Recommender-main/configs/decoder_amazon.gin with:
+#   - dataset cache + checkpoints redirected into FYP/artifacts/ (upstream tree untouched)
+#   - wandb disabled
+#   - reduced iterations for a local smoke run (raise to 10000 for the real run)
+#   - pretrained RQ-VAE = upstream published Beauty checkpoint (path relative to FYP root);
+#     switch to artifacts/checkpoints/rqvae/amazon/... once our own tokenizer is trained
+
+train.iterations=2000
+train.learning_rate=0.001
+train.weight_decay=0.0001
+train.batch_size=640
+train.vae_input_dim=768
+train.vae_hidden_dims=[512, 256, 128]
+train.vae_embed_dim=32
+train.vae_n_cat_feats=0
+train.vae_codebook_size=256
+train.vae_n_layers=3
+train.wandb_logging=False
+train.pretrained_rqvae_path="RQ-VAE-Recommender-main/trained_models/rqvae_amazon_beauty/checkpoint_399999.pt"
+train.save_dir_root="artifacts/checkpoints/decoder/amazon/"
+train.dataset_folder="artifacts/dataset/amazon"
+train.dataset=%data.processed.RecDataset.AMAZON
+train.force_dataset_process=False
+train.full_eval_every=1000
+train.partial_eval_every=2000
+train.dataset_split="beauty"
+train.t5_d_model=384
+train.t5_num_heads=6
+train.t5_d_ff=1024
+train.t5_num_layers=4
+train.top_k_for_generation=10
+train.should_add_sep_token=True
