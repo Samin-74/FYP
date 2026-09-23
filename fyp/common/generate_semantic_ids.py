@@ -57,6 +57,12 @@ def codebook(level_module) -> torch.Tensor:
 
 def codebook_dist(layer, r: torch.Tensor) -> torch.Tensor:
     """Squared-L2 distances from residual r to the level codebook (B, n_embed)."""
+    cb = codebook(layer)
+    return (r**2).sum(axis=1, keepdim=True) + (cb.T**2).sum(
+        axis=0, keepdim=True
+    ) - 2 * r @ cb.T
+
+
 @torch.no_grad()
 def semantic_ids_and_margins(model: RqVae, x: torch.Tensor, batch: int = BATCH):
     """Compute semantic IDs and per-level boundary margins for a batch of embeddings.
@@ -85,13 +91,6 @@ def semantic_ids_and_margins(model: RqVae, x: torch.Tensor, batch: int = BATCH):
         torch.cat(margins, dim=1),
         torch.cat(d1s, dim=1),
     )
-
-
-def codebook_dist(layer, r: torch.Tensor) -> torch.Tensor:
-    cb = codebook(layer)
-    return (r**2).sum(axis=1, keepdim=True) + (cb.T**2).sum(
-        axis=0, keepdim=True
-    ) - 2 * r @ cb.T
 
 
 def run(checkpoint: str = str(CHECKPOINT), limit: int | None = None) -> pl.DataFrame:

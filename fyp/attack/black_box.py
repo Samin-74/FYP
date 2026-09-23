@@ -5,10 +5,15 @@ out) — no gradients, no codebook access. This stub searches in embedding space
 with random/local perturbations using only ``get_semantic_ids`` as the oracle,
 to be replaced by an LLM-rewrite evolutionary/bandit search that proposes
 text edits. The oracle interface is identical either way.
+
+This stub is a plumbing check, not a baseline: isotropic noise in 768-d
+toward an arbitrary target code is expected to fail, so its success rate is
+not a reportable result.
 """
 
 import torch
 
+from fyp.attack.constraints import project_to_norm
 from fyp.common.generate_semantic_ids import DEVICE
 from fyp.audit.metrics import assigned_id_at_level
 
@@ -41,7 +46,7 @@ def query_only_flip(
 
     for q in range(budget):
         delta = sigma * torch.randn(x0c.shape, generator=g).to(DEVICE)
-        x = x0c + delta
+        x = project_to_norm(x0c, x0c + delta)
         queries += 1
         if oracle_id(model, x, level) == target_code:
             if constraint is None or constraint.satisfied(x0c, x):

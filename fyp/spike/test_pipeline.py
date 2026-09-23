@@ -75,7 +75,7 @@ def main() -> int:
           f"(norms: {[f'{r['perturbation_norm']:.3f}' for r in flip_results]})")
 
     print("\n[4/5] White-box targeted flip (embedding space)")
-    constraint = EmbeddingCosineConstraint(threshold=0.90)
+    constraint = EmbeddingCosineConstraint(threshold=0.95)
     wb = []
     for i in range(min(args.n_attack, x.shape[0])):
         x0 = torch.from_numpy(x[i:i+1]).to(DEVICE)

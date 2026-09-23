@@ -39,7 +39,7 @@ uv pip install --python .venv/Scripts/python.exe --reinstall-package torch \
 ## Run everything, in order
 
 ```bash
-cd c:/Users/chowd/Downloads/FYP
+cd <path-to>/FYP        # the repository root
 PY=.venv/Scripts/python.exe
 
 # 0. Sanity: upstream tests still pass (CPU is fine)
@@ -62,14 +62,16 @@ $PY -m fyp.audit.run_audit --sensitivity-sample 2048
 $PY -m fyp.audit.report_figures
 
 # 5. White-box attack evaluation on audit-flagged items (any-flip, bestseller
-#    collision, high-traffic prefix; cosine >= 0.95 enforced by projection)
+#    prefix, full-ID bestseller collision, high-traffic prefix; cosine >= 0.95
+#    and the original embedding norm enforced by projection for every goal)
 #    -> artifacts/runs/whitebox_eval.{json,csv}   [~10-30 min]
 $PY -m fyp.attack.run_whitebox_eval --n-per-set 200 --cosine 0.95 --level 0
 
 # 6. (Optional, Phase 1 model track) semantic-ID sequences for the retriever
 $PY -m fyp.common.prepare_sequences
 
-# 7. Quick regression check: end-to-end mini-batch, prints PASS/FAIL
+# 7. Smoke test: end-to-end mini-batch, prints PASS/FAIL (checks that each
+#    stage runs; its attack counts are not results)
 $PY -m fyp.spike.test_pipeline --n-items 64 --n-attack 8
 ```
 
@@ -100,9 +102,10 @@ test_pipeline ── end-to-end regression check (writes nothing)
 
 | Where | Parameter | Default | Notes |
 |---|---|---|---|
-| `audit.metrics.min_flip_perturbation_batch` | `step_size`, `max_steps`, `norm_cap`, `batch` | 0.05 / 200 / 50 / 512 | batched gradient-ascent flip distance |
+| `audit.metrics.min_flip_perturbation_batch` | `step_size`, `max_steps`, `norm_cap`, `batch` | 0.05 / 200 / 50 / 512 | batched margin-descent flip distance; reachable ‖δ‖ ≤ min(norm_cap, max_steps × step_size) = 10 |
+| `audit.metrics.min_flip_perturbation_batch` | `cosine_threshold`, `keep_norm` | None / True | audit: no cosine limit; eval any-flip: 0.95 |
 | `audit.metrics.steerability` | `tau` | median sensitivity of flippable sample | composite score = `exp(-sens/tau)` |
-| `attack.white_box.targeted_flip` | `cosine_threshold`, `max_steps` | 0.95 / 300 | enforced by projection after every step |
+| `attack.white_box.targeted_flip` / `targeted_collision` | `cosine_threshold`, `max_steps`, `keep_norm` | 0.95 / 300 / True | enforced by projection after every step |
 | `attack.run_whitebox_eval` | `--n-per-set` | 200 | near-boundary + random comparison sets |
 | `attack.constraints` | cosine threshold | 0.95 | semantic preservation, embedding-space proxy |
 | `audit.run_audit` | `--eps` | 0.25 0.5 1.0 2.0 5.0 | multiples of the median margin for "% within ε" |
@@ -115,8 +118,14 @@ test_pipeline ── end-to-end regression check (writes nothing)
   the two nearest codeword distances (same assignment rule as the upstream
   quantizer). Small margin = near a Voronoi boundary.
 - **Sensitivity** — smallest input-space L2 perturbation that flips the level-k
-  code, estimated by following the margin gradient w.r.t. `x` until the argmin
-  changes. `inf` if the norm cap is exceeded.
+  code, estimated by *descending* the margin gradient w.r.t. `x` (staying on
+  the original norm sphere) until the argmin changes. `inf` if the budget is
+  exhausted.
+- **Collisions** — `collision_rate` = 1 − unique IDs / items (items needing a
+  dedup token > 0); `frac_items_in_colliding_groups` = items whose full ID is
+  shared with at least one other item.
+- **Embedding geometry** — norm percentiles and cosine to the nearest *other*
+  catalogue item; calibrates whether cos ≥ 0.95 really preserves meaning.
 - **Steerability** — `exp(-sensitivity / median_sensitivity)` on items that
   flip within budget, 0 otherwise.
 

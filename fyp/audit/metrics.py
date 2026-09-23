@@ -6,20 +6,42 @@ Three per-item, per-level quantities:
   the gap between the two nearest codeword distances in residual space.
 
 - **Sensitivity**: smallest L2 perturbation of the *input embedding* that
-  flips the assigned code. Estimated white-box: ascend the margin via its
-  gradient w.r.t. the input embedding (the encoder and all upstream levels are
-  recomputed each step; argmin selections are piecewise constant, so the
-  gradient is exact within the current cell) until the argmin changes.
+  flips the assigned code. Estimated white-box: *descend* the margin
+  d2 - d1 via its gradient w.r.t. the input embedding (the encoder and all
+  upstream levels are recomputed each step; argmin selections are piecewise
+  constant, so the gradient is exact within the current cell) until the argmin
+  changes. (An earlier version ascended the margin, i.e. moved items *away*
+  from their nearest boundary; numbers produced before that fix are invalid.)
 
 - **Steerability**: composite score `exp(-sensitivity / tau)` in [0, 1] with
   `tau` = catalogue median sensitivity. Highly steerable items need only a tiny
   perturbation to flip. (Margin distributions are exported alongside; the
   composite is deliberately simple and documented.)
+
+Perturbation budget: each step moves ||delta|| by at most ``step_size``, so the
+largest reachable perturbation is ``min(norm_cap, max_steps * step_size)``
+(= 10 with the defaults), see :func:`effective_budget`. The perturbed embedding
+is kept on the original norm sphere (``keep_norm``) and, optionally, within a
+cosine budget (``cosine_threshold``) after every step.
 """
 
 import torch
 
+from fyp.attack.constraints import project_to_cosine, project_to_norm
 from fyp.common.generate_semantic_ids import DEVICE, codebook_dist
+
+
+def effective_budget(max_steps: int, step_size: float, norm_cap: float) -> float:
+    """Largest ||delta|| the flip search can actually reach."""
+    return min(norm_cap, max_steps * step_size)
+
+
+def _constrain(x0, x, cosine_threshold, keep_norm):
+    if cosine_threshold is not None:
+        x = project_to_cosine(x0, x, cosine_threshold)
+    if keep_norm:
+        x = project_to_norm(x0, x)
+    return x
 
 
 def margin_at_level(model, x, level: int) -> torch.Tensor:
@@ -56,10 +78,12 @@ def min_flip_perturbation(
     max_steps: int = 200,
     step_size: float = 0.05,
     norm_cap: float = 50.0,
+    cosine_threshold: float | None = None,
+    keep_norm: bool = True,
 ) -> dict:
     """Estimate the smallest input-space L2 perturbation that flips the code.
 
-    Follows the normalized gradient of the level-k margin until the argmin at
+    Follows the negative normalized gradient of the level-k margin until the argmin at
     that level changes, or the norm cap / step budget is exhausted.
 
     Returns dict with keys: flipped (bool), perturbation_norm, steps,
@@ -79,12 +103,13 @@ def min_flip_perturbation(
             gn = g.norm()
             if gn < 1e-12 or torch.isnan(gn):
                 break
-            x += step_size * g / gn
+            x -= step_size * g / gn
             delta = x - x0
             dn = delta.norm()
             if dn > norm_cap:
                 x.copy_(x0 + norm_cap * delta / dn)
-                dn = torch.tensor(norm_cap, device=dn.device)
+            x.copy_(_constrain(x0, x, cosine_threshold, keep_norm))
+            dn = (x - x0).norm()
             new_id = assigned_id_at_level(model, x, level)
             if bool((new_id != orig_id).item()):
                 return {
@@ -115,10 +140,12 @@ def min_flip_perturbation_batch(
     step_size: float = 0.05,
     norm_cap: float = 50.0,
     batch: int = 512,
+    cosine_threshold: float | None = None,
+    keep_norm: bool = True,
 ) -> dict:
     """Batched version of :func:`min_flip_perturbation` over many items.
 
-    All items in a batch ascend their own margin gradient simultaneously;
+    All items in a batch descend their own margin gradient simultaneously;
     items converge (flip) or hit the cap at different steps and are frozen
     out of further updates via an active mask.
 
@@ -137,7 +164,7 @@ def min_flip_perturbation_batch(
     for i in range(0, X0.shape[0], batch):
         res = _flip_batch(
             model, X0[i : i + batch].to(DEVICE).float(), level,
-            max_steps, step_size, norm_cap,
+            max_steps, step_size, norm_cap, cosine_threshold, keep_norm,
         )
         for k, v in res.items():
             out[k].append(v)
@@ -145,7 +172,7 @@ def min_flip_perturbation_batch(
 
 
 def _flip_batch(
-    model, x0, level, max_steps, step_size, norm_cap
+    model, x0, level, max_steps, step_size, norm_cap, cosine_threshold, keep_norm
 ) -> dict:
     x = x0.detach().clone().requires_grad_(True)
     orig_id = assigned_id_at_level(model, x0, level)
@@ -167,7 +194,7 @@ def _flip_batch(
             gn = torch.where(gn < 1e-12, torch.ones_like(gn), gn)
             step_dir = step_size * g / gn
             upd = active[:, None] * step_dir
-            x += upd
+            x -= upd
             delta = x - x0
             dn = delta.norm(dim=1, keepdim=True)
             over = (dn.squeeze(1) > norm_cap) & active
@@ -178,7 +205,10 @@ def _flip_batch(
                     torch.ones_like(dn),
                 )
                 x.copy_(x0 + delta * scale)
-                dn = (x - x0).norm(dim=1, keepdim=True)
+            # frozen rows have delta already inside the constraints, so the
+            # projections leave them unchanged
+            x.copy_(_constrain(x0, x, cosine_threshold, keep_norm))
+            dn = (x - x0).norm(dim=1, keepdim=True)
             new_id = assigned_id_at_level(model, x, level)
             just_flipped = active & (new_id != orig_id)
             flipped |= just_flipped
