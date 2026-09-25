@@ -1,7 +1,7 @@
 # Interim Report Checkpoint — Status
 
-**Status:** audit + attack numbers pending re-run after bug fixes · smoke test: `fyp/spike/test_pipeline.py`
-**Authoritative numbers file:** `artifacts/audit/report_numbers.md`
+**Status:** audit + attack numbers regenerated 25 Sep on the fixed pipeline · smoke test: `fyp/spike/test_pipeline.py` (8/8)
+**Authoritative numbers file:** `artifacts/audit/report_numbers.md` (+ `artifacts/runs/whitebox_eval.json`)
 
 ## DONE for the interim report
 
@@ -19,9 +19,13 @@
 - **Constrained white-box attack evaluation** — cosine ≥ 0.95 and the original
   embedding norm enforced by projection; four goals (any-flip, bestseller
   prefix, full-ID bestseller collision, high-traffic prefix) with a random-item
-  comparison set. **Numbers must be regenerated.** The earlier figures (92.0% /
-  47.5% / 16.5%) came from code with a broken cosine projection and a
-  margin search that went the wrong way (see root README, "Bugs fixed").
+  comparison set. **Regenerated 25 Sep on the fixed code:** any-flip 100%/100%
+  (near-boundary/random, mean cos 0.9987), high-traffic prefix 97.0%/98.5%,
+  bestseller prefix 69.5%/72.0%, full-ID collision 13.5%/17.0%. The earlier
+  figures (92.0% / 47.5% / 16.5%) came from code with a broken cosine
+  projection and a margin search that went the wrong way (see root README,
+  "Bugs fixed"). Audit replicated on `checkpoint_high_entropy.pt` (also 100%
+  one-step flips; collisions much worse, 84.2%): `artifacts/audit_high_entropy/`.
 - **Black-box query-only stub**: a plumbing check only, not a reportable result.
 - **Retriever-ready data** — `sequences.parquet` (22,363 users, upstream split
   protocol) for the generative retriever.

@@ -13,9 +13,10 @@ steal recommendation share, without touching the ranker?*
 Findings so far are **in embedding space only** (no text-level attack yet). On
 classic Amazon Beauty 5-core (12,101 items) the published RQ-VAE checkpoint
 leaves 19.0% of items needing a dedup token (≈27% share their full ID with
-another item). The attack/sensitivity numbers are being regenerated after the
-bug fixes listed below. The earlier headline figures (92% any-flip at
-cos ≥ 0.95, etc.) are **invalid** and must not be quoted.
+another item), and every sampled item's level-0 code flips with a single
+0.05-norm perturbation. The earlier headline figures (92% any-flip at
+cos ≥ 0.95, etc.) came from buggy code and are **invalid** — the numbers below
+are the re-run (25 Sep) on the fixed pipeline.
 
 ## Repository layout
 
@@ -71,10 +72,35 @@ workarounds: **[fyp/README.md](fyp/README.md)**.
 | Items within 0.25× median boundary margin (level 0) | 19.4%, a *relative* measure (≈16% expected for any exponential-shaped distribution), so not evidence of fragility on its own |
 | Margin–popularity correlation | R² ≤ 1e-4 (none) |
 
-**Invalid, pending re-run** of `run_audit`, `report_figures` and
-`run_whitebox_eval`: sensitivity flip rate, steerability, and every white-box
-ASR (any-flip, prefix, bestseller). Black-box random search is a plumbing stub
-and not a reportable result.
+**Re-run on the fixed code (25 Sep)** — sensitivity (unconstrained, norm-preserving,
+level 0, sample of 2,048) and white-box ASR (cos ≥ 0.95 **and** original norm
+enforced by projection, n = 200 per set, level 0):
+
+| Finding | Number |
+|---|---|
+| Sensitivity flip rate (sample of 2,048) | **100%**, median ‖δ‖ = 0.050 — one gradient step; effective budget 10 |
+| Any-flip ASR | **100%** near-boundary, **100%** random (mean cos 0.9987, far inside the 0.95 budget) |
+| High-traffic prefix ASR | **97.0%** near-boundary, **98.5%** random (mean cos ≈ 0.983) |
+| Bestseller prefix ASR (level-0 code of a top-1% item) | 69.5% near-boundary, 72.0% random (mean cos ≈ 0.976) |
+| Bestseller full-ID collision ASR (all 3 levels) | 13.5% near-boundary, 17.0% random (mean cos ≈ 0.98) |
+
+Read-outs from the re-run:
+
+- The quantizer is **far more fragile than the buggy numbers suggested**: the
+  wrong-way search understated flippability. Any item's level-0 code moves with
+  ‖δ‖ ≈ 0.05 on the unit sphere (cos ≈ 0.999).
+- **Near-boundary ≈ random everywhere** — when every item flips trivially,
+  margin-based target selection adds nothing.
+- **The cos ≥ 0.95 budget is weak for this catalogue**: 48.5% of items already
+  have a *different* product within cos 0.95 (median nearest-other-item cosine
+  0.949). Successes satisfy the constraint yet need not preserve the product.
+- **Not a quirk of one checkpoint**: the same audit on
+  `checkpoint_high_entropy.pt` also gives a 100% one-step flip rate (margins
+  ~4× larger, still one step). Its full-ID collision rate is much *worse* —
+  84.2% (1,908 unique IDs; 92.1% of items in a colliding group) — per-level
+  entropy balancing does not yield unique full IDs.
+  (`artifacts/audit_high_entropy/`).
+- Black-box random search is a plumbing stub and not a reportable result.
 
 ### Bugs fixed (why the old attack numbers are invalid)
 
