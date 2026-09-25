@@ -166,6 +166,7 @@ def fig_sensitivity_by_category(df, top_n=8):
     fig, ax = plt.subplots(figsize=(7, 4))
     bp = ax.boxplot(data, tick_labels=[f"{c}\n(n={n})" for c, n in zip(cats, counts)],
                     showfliers=False)
+    plt.setp(ax.get_xticklabels(), rotation=15, ha="right", fontsize=8)
     ax.set_ylabel("sensitivity ($\\|\\delta\\|_2$ to flip level-0 code)")
     ax.set_xlabel("category (top %d by item count)" % top_n)
     plt.setp(bp["medians"], color="red")
@@ -277,7 +278,7 @@ def report_numbers_md(df, summary):
         "- `fig_steerability_vs_popularity.png` / `fig_steerability_vs_desclen.png` /",
         "  `fig_sensitivity_by_category.png` — steerability vs item properties.",
     ]
-    (AUDIT_DIR / "report_numbers.md").write_text("\n".join(lines))
+    (AUDIT_DIR / "report_numbers.md").write_text("\n".join(lines), encoding="utf-8")
 
 
 def main():

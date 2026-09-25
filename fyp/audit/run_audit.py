@@ -43,12 +43,16 @@ MAX_STEPS = 200
 STEP_SIZE = 0.05
 NORM_CAP = 50.0
 
-_CATEGORY_RE = re.compile(r"Categories: \[?'?([^';\]]+)")
+_CATEGORY_RE = re.compile(r"Categories: \[(.*?)\]")
 
 
 def parse_category(text: str) -> str:
+    """Second-level category (element 0 is always the top-level 'Beauty')."""
     m = _CATEGORY_RE.search(text)
-    return m.group(1).strip() if m else "Unknown"
+    if not m:
+        return "Unknown"
+    cats = [c.strip().strip("'\"") for c in m.group(1).split(",") if c.strip()]
+    return cats[1] if len(cats) > 1 else (cats[0] if cats else "Unknown")
 
 
 def percentile(name: str, values: np.ndarray) -> dict:
