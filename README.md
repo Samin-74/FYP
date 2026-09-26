@@ -38,7 +38,8 @@ FYP/
 │   ├── attack/                    ← white-box / black-box / text-level steering + eval
 │   ├── eval/                      ← TIGER retriever baseline launcher
 │   └── spike/                     ← end-to-end smoke test (runs, not results)
-├── artifacts/                     ← ALL results (git-ignored, regenerable)
+├── artifacts/                     ← results: report files (figures/numbers/JSONs) committed;
+│   │                                data, embeddings, checkpoints regenerable (git-ignored)
 │   ├── audit/                     ← audit tables + 7 figures + report_numbers.md
 │   ├── audit_high_entropy/        ← same audit, high-entropy checkpoint
 │   ├── semantic_ids/              ← per-item IDs, codebooks, retriever sequences

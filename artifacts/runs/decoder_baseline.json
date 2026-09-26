@@ -1,0 +1,19 @@
+{
+  "model": "EncoderDecoderRetrievalModel (TIGER-style T5 decoder)",
+  "t5": {"d_model": 384, "num_heads": 6, "d_ff": 1024, "num_layers": 4},
+  "tokenizer": "RQ-VAE-Recommender-main/trained_models/rqvae_amazon_beauty/checkpoint_399999.pt (published, 3x256)",
+  "dataset": "classic Amazon Beauty 5-core (12,101 items, 22,363 users)",
+  "config": "configs/decoder_beauty_fyp.gin",
+  "iterations": 10000,
+  "batch_size": 640,
+  "note": "Local-scale baseline (t5-small-ish, 10k iters, eager mode); paper-scale TIGER reports somewhat higher. Metrics computed by upstream full-eval over the whole eval split at the final iteration; h@K = Recall@K.",
+  "final_eval": {
+    "iteration": 10000,
+    "ndcg": 0.04527881333862408,
+    "recall@1": 0.02343156106068059,
+    "recall@5": 0.05330232974109019,
+    "recall@10": 0.0729329696373474
+  },
+  "checkpoint": "artifacts/checkpoints/decoder/amazon/checkpoint_9999.pt",
+  "train_time": "1h27m (RTX 4080 SUPER, eager)"
+}

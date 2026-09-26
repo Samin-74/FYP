@@ -1,0 +1,66 @@
+{
+  "cosine_threshold": 0.95,
+  "norm_preserving": true,
+  "level": 0,
+  "traffic_code": 208,
+  "sets": {
+    "near_boundary": {
+      "n": 200,
+      "median_margin_x_level_median": 0.009308893648859418,
+      "any_flip": {
+        "n": 200,
+        "asr": 1.0,
+        "mean_norm_success": 0.05025999993085861,
+        "median_norm_success": 0.04995543882250786,
+        "mean_cosine_success": 0.9987344145774841
+      },
+      "bestseller_prefix": {
+        "asr": 0.695,
+        "mean_cosine_success": 0.9754475526672473,
+        "mean_norm_success": 0.19816590572218243,
+        "mean_steps_success": 55.83453237410072
+      },
+      "bestseller_collision": {
+        "asr": 0.135,
+        "mean_cosine_success": 0.9829085557549088,
+        "mean_norm_success": 0.1634377357032564,
+        "mean_steps_success": 61.03703703703704
+      },
+      "traffic_prefix": {
+        "asr": 0.97,
+        "mean_cosine_success": 0.9828008643745147,
+        "mean_norm_success": 0.16281371602078074,
+        "mean_steps_success": 32.07216494845361
+      }
+    },
+    "random": {
+      "n": 200,
+      "median_margin_x_level_median": 1.1174622196218869,
+      "any_flip": {
+        "n": 200,
+        "asr": 1.0,
+        "mean_norm_success": 0.05068706348538399,
+        "median_norm_success": 0.04997572302818298,
+        "mean_cosine_success": 0.9987066984176636
+      },
+      "bestseller_prefix": {
+        "asr": 0.72,
+        "mean_cosine_success": 0.9803829863667488,
+        "mean_norm_success": 0.17392564924537307,
+        "mean_steps_success": 38.77777777777778
+      },
+      "bestseller_collision": {
+        "asr": 0.17,
+        "mean_cosine_success": 0.9765788825119243,
+        "mean_norm_success": 0.19849824532866478,
+        "mean_steps_success": 67.05882352941177
+      },
+      "traffic_prefix": {
+        "asr": 0.985,
+        "mean_cosine_success": 0.982740514774613,
+        "mean_norm_success": 0.16255461536158766,
+        "mean_steps_success": 26.873096446700508
+      }
+    }
+  }
+}

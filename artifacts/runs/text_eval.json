@@ -1,0 +1,102 @@
+{
+  "n_items_catalogue": 12101,
+  "seed": 0,
+  "encoder_check": {
+    "n": 200,
+    "median_cos_fresh_vs_stored": 0.9999998807907104,
+    "full_id_agreement_fresh_vs_stored": 0.985,
+    "level0_agreement_fresh_vs_stored": 0.995
+  },
+  "benign_edit_stability": {
+    "n_items": 500,
+    "n_edits": 2500,
+    "per_operator": {
+      "spelling": {
+        "n": 500,
+        "mean_cos": 0.9999240636825562,
+        "p5_cos": 0.999509871006012,
+        "level0_flip_rate": 0.01,
+        "full_id_change_rate": 0.038
+      },
+      "word_shuffle": {
+        "n": 500,
+        "mean_cos": 0.9859977960586548,
+        "p5_cos": 0.9685906171798706,
+        "level0_flip_rate": 0.396,
+        "full_id_change_rate": 0.846
+      },
+      "word_dropout": {
+        "n": 500,
+        "mean_cos": 0.9918944239616394,
+        "p5_cos": 0.9707103967666626,
+        "level0_flip_rate": 0.284,
+        "full_id_change_rate": 0.594
+      },
+      "case_punct": {
+        "n": 500,
+        "mean_cos": 0.9923270344734192,
+        "p5_cos": 0.9846652150154114,
+        "level0_flip_rate": 0.342,
+        "full_id_change_rate": 0.752
+      },
+      "field_reorder": {
+        "n": 500,
+        "mean_cos": 0.9907627105712891,
+        "p5_cos": 0.9865055680274963,
+        "level0_flip_rate": 0.338,
+        "full_id_change_rate": 0.788
+      }
+    },
+    "flip_rate_by_cosine_bin": {
+      "[0.95,0.98)": {
+        "n": 158,
+        "level0_flip_rate": 0.5822784810126582,
+        "full_id_change_rate": 0.9367088607594937
+      },
+      "[0.98,0.99)": {
+        "n": 599,
+        "level0_flip_rate": 0.39065108514190316,
+        "full_id_change_rate": 0.8614357262103506
+      },
+      "[0.99,1.001)": {
+        "n": 1741,
+        "level0_flip_rate": 0.20505456634118321,
+        "full_id_change_rate": 0.4842044801838024
+      }
+    },
+    "overall": {
+      "mean_cos": 0.9921811819076538,
+      "level0_flip_rate": 0.274,
+      "full_id_change_rate": 0.6036
+    }
+  },
+  "text_steering": {
+    "target_traffic_code": 208,
+    "vocab": [
+      "dead",
+      "sea",
+      "cream",
+      "salt",
+      "soap",
+      "olay",
+      "daily",
+      "exfoliating",
+      "cleanser",
+      "body",
+      "ounce",
+      "regenerist",
+      "bestseller",
+      "top rated",
+      "professional",
+      "gift set",
+      "new"
+    ],
+    "n_items": 50,
+    "max_rounds": 5,
+    "asr": 0.3,
+    "asr_cos_ge_0.95": 0.24,
+    "mean_cos_success": 0.9623014648755391,
+    "min_cos_success": 0.9296514391899109,
+    "mean_rounds_success": 1.8666666666666667
+  }
+}
