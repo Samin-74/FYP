@@ -1,14 +1,14 @@
 import data.processed
 
-# FYP smoke-run config: T5 decoder on classic Amazon Beauty 5-core.
+# FYP baseline-run config: T5 decoder on classic Amazon Beauty 5-core.
 # Mirrors RQ-VAE-Recommender-main/configs/decoder_amazon.gin with:
 #   - dataset cache + checkpoints redirected into FYP/artifacts/ (upstream tree untouched)
 #   - wandb disabled
-#   - reduced iterations for a local smoke run (raise to 10000 for the real run)
+#   - 10000 iterations (baseline run; 2000 was the smoke run)
 #   - pretrained RQ-VAE = upstream published Beauty checkpoint (path relative to FYP root);
 #     switch to artifacts/checkpoints/rqvae/amazon/... once our own tokenizer is trained
 
-train.iterations=2000
+train.iterations=10000
 train.learning_rate=0.001
 train.weight_decay=0.0001
 train.batch_size=640

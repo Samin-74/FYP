@@ -63,24 +63,35 @@ more fragile than the buggy numbers suggested — 100% of the audit sample flips
 within one 0.05-norm step; constrained white-box ASR in
 `artifacts/runs/whitebox_eval.json`. Calibration finding: 48.5% of items
 already have a *different* product within cos 0.95, so that budget does not by
-itself preserve meaning. Secondary audit on `checkpoint_high_entropy.pt` to
-check the results are not a quirk of one checkpoint. `report_figures` UTF-8
-write fix.
+itself preserve meaning. Secondary audit on `checkpoint_high_entropy.pt`
+(also 100% one-step flips; 84.2% collision rate). `report_figures` UTF-8
+write fix; category-extraction fix (top-level "Beauty" was parsed for every
+item).
+
+**25–26 Sep — text-level v1 + retriever baseline (ahead of schedule):**
+rule-based text attacks through the real encoder (`fyp/attack/text_edits.py`,
+`run_text_eval.py`) — benign edits change the full ID of 60.4% of items
+(level-0: 27.4%) and greedy keyword steering hits 30% ASR onto the
+high-traffic prefix; TIGER decoder baseline trained locally via the new
+Windows launcher (`fyp/eval/train_decoder_baseline.py`, works around the
+upstream torch.compile/triton crash): Recall@10 0.073, NDCG 0.045.
 
 ## Upcoming (per plan §4)
 
 - **Rest of Phase 0 (→ 12 Oct):** annotated bibliography write-up; pipeline is
   already done (ahead of schedule).
-- **Phase 1 (13 Oct – 2 Nov):** train our own RQ-VAE + TIGER retriever;
-  baseline Recall@K/NDCG@K (interim outline §10 expects these numbers).
-  Re-run the audit on our own checkpoint as well as the published ones.
-- **Text-level attack path (pulled forward from Phase 3):** benign-paraphrase
-  ID-stability test (~500 LLM-paraphrased descriptions) + LLM-rewrite search
-  on near-boundary items — the first real-text results, currently missing.
-- **2 Nov:** pivot checkpoint (already informed: embedding-space feasibility
-  confirmed; text-side realisation is the open question).
+- **Phase 1 (13 Oct – 2 Nov):** train our own RQ-VAE; paper-scale retriever
+  (t5-base, full iterations) on the cluster — the local baseline (Recall@10
+  0.073) is the reference point. Re-run the audit on our own checkpoint as
+  well as the published ones.
+- **Text-level attack v2 (pulled forward from Phase 3):** LLM paraphrases and
+  LLM-rewrite search plugging into the `text -> text` operator interface;
+  HotFlip-style token substitution. v1 (rule-based) already gives the first
+  real-text numbers.
+- **2 Nov:** pivot checkpoint (already informed: embedding-space *and*
+  text-level feasibility confirmed; downstream impact is the open question).
 - **Phases 2–3 (3 Nov – 21 Dec):** full audit write-up with the fixed numbers,
-  attack v1 text results, interim report (due **21 Dec 2026**).
+  attack v2 text results, interim report (due **21 Dec 2026**).
 
 ## Contribution summary
 

@@ -10,13 +10,16 @@ We audit the quantization layer of a TIGER-style generative recommender
 ask: *can a seller push their item across an RQ-VAE codebook boundary and
 steal recommendation share, without touching the ranker?*
 
-Findings so far are **in embedding space only** (no text-level attack yet). On
-classic Amazon Beauty 5-core (12,101 items) the published RQ-VAE checkpoint
-leaves 19.0% of items needing a dedup token (≈27% share their full ID with
-another item), and every sampled item's level-0 code flips with a single
-0.05-norm perturbation. The earlier headline figures (92% any-flip at
-cos ≥ 0.95, etc.) came from buggy code and are **invalid** — the numbers below
-are the re-run (25 Sep) on the fixed pipeline.
+Findings so far: the published RQ-VAE checkpoint on classic Amazon Beauty
+5-core (12,101 items) leaves 19.0% of items needing a dedup token (≈27% share
+their full ID with another item); every sampled item's level-0 code flips with
+a single 0.05-norm embedding perturbation; **meaning-preserving text edits
+change the full semantic ID of 60% of items**; and a greedy keyword edit
+steers 30% of near-boundary items onto the high-traffic level-0 prefix. A
+local-scale TIGER retriever baseline is trained (Recall@10 0.073). The earlier
+headline figures (92% any-flip at cos ≥ 0.95, etc.) came from buggy code and
+are **invalid** — the numbers below are the re-run (25 Sep) on the fixed
+pipeline.
 
 ## Repository layout
 
@@ -26,19 +29,22 @@ FYP/
 ├── THIRD_PARTY_NOTICES.md         ← upstream attribution (MIT)
 ├── docs/
 │   ├── FYP_Project_Plan.md        ← full project plan (source of truth)
-│   ├── weekly_timeline.md         ← Week 1-7 work log & team breakdown
+│   ├── weekly_timeline.md         ← dated work log & team breakdown
 │   └── interim_checkpoint.md      ← what is frozen for interim vs. reserved
 ├── configs/                       ← our gin configs (paths/wandb overridden)
 ├── fyp/                           ← ALL custom code (see fyp/README.md)
 │   ├── common/                    ← data prep, embeddings, semantic IDs, sequences
 │   ├── audit/                     ← margin/sensitivity/steerability + figures
-│   ├── attack/                    ← white-box / black-box steering + eval
+│   ├── attack/                    ← white-box / black-box / text-level steering + eval
+│   ├── eval/                      ← TIGER retriever baseline launcher
 │   └── spike/                     ← end-to-end smoke test (runs, not results)
 ├── artifacts/                     ← ALL results (git-ignored, regenerable)
 │   ├── audit/                     ← audit tables + 7 figures + report_numbers.md
+│   ├── audit_high_entropy/        ← same audit, high-entropy checkpoint
 │   ├── semantic_ids/              ← per-item IDs, codebooks, retriever sequences
 │   ├── embeddings/                ← 768-d Sentence-T5 catalogue embeddings
-│   ├── runs/                      ← white-box evaluation results
+│   ├── checkpoints/               ← trained retriever (decoder baseline)
+│   ├── runs/                      ← white-box / text-level / baseline results
 │   └── dataset/amazon/            ← classic Beauty 5-core (auto-downloaded)
 ├── RQ-VAE-Recommender-main/       ← unmodified upstream (MIT, vendored)
 └── data_raw_2023/                 ← 2023 dumps, secondary/fallback (git-ignored)
@@ -55,6 +61,8 @@ $PY -m fyp.common.generate_semantic_ids             # semantic IDs + margins
 $PY -m fyp.audit.run_audit --sensitivity-sample 2048
 $PY -m fyp.audit.report_figures                     # 7 figures + report_numbers.md
 $PY -m fyp.attack.run_whitebox_eval --n-per-set 200 --cosine 0.95 --level 0
+$PY -m fyp.attack.run_text_eval                     # text-level: benign edits + steering (~40 min)
+$PY -m fyp.eval.train_decoder_baseline configs/decoder_beauty_fyp.gin   # TIGER baseline (~1.5 h)
 $PY -m fyp.spike.test_pipeline --n-items 64 --n-attack 8   # smoke test (checks it runs, not results)
 ```
 
@@ -101,6 +109,31 @@ Read-outs from the re-run:
   entropy balancing does not yield unique full IDs.
   (`artifacts/audit_high_entropy/`).
 - Black-box random search is a plumbing stub and not a reportable result.
+
+**Text-level results (25 Sep, `fyp.attack.run_text_eval`)** — real listing text,
+re-encoded through the same sentence-t5-xxl and re-quantized
+(`artifacts/runs/text_eval.json`, examples in `text_eval_examples.md`):
+
+| Finding | Number |
+|---|---|
+| Benign edits changing the full semantic ID | **60.4%** of 2,500 meaning-preserving edits (500 items × 5 operators) |
+| Benign edits flipping the level-0 code | **27.4%** (spelling only 1.0%; word shuffle 39.6%; case/punctuation 34.2%; field reorder 33.8%; word dropout 28.4%) |
+| Flip rate at cos ∈ [0.99, 1.0] | **20.5%** — even near-identical text lands across a boundary |
+| Text steering ASR (greedy keywords → high-traffic prefix, 50 near-boundary items) | **30%** (24% at cos ≥ 0.95), mean cos of successes 0.962, mean 1.9 keyword edits |
+| Encoder floor (re-encoding identical text) | level-0 agreement 99.5%, full-ID 98.5% — benign flip rates are far above this noise floor |
+
+Read-outs: fragility is **not** an embedding-space artefact — tiny, meaning-
+preserving text changes routinely cross codebook boundaries, and the
+cos ≥ 0.95 attack budget is far looser than real edits need (benign edits
+average cos 0.992). Steerability is real but bounded at text level: 30% by
+1–2 keyword edits vs 97% with free embedding movement.
+
+**TIGER retriever baseline (25 Sep, `artifacts/runs/decoder_baseline.json`)** —
+upstream decoder trained on the published tokenizer (t5-small-scale T5,
+10k iterations, batch 640, 1h27m local): **Recall@1 0.023, Recall@5 0.053,
+Recall@10 0.073, NDCG 0.045**. Local-scale reference point (paper-scale TIGER
+reports higher); the checkpoint (`artifacts/checkpoints/decoder/amazon/
+checkpoint_9999.pt`) is the substrate for the downstream-impact study.
 
 ### Bugs fixed (why the old attack numbers are invalid)
 

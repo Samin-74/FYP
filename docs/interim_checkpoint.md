@@ -1,7 +1,7 @@
 # Interim Report Checkpoint — Status
 
-**Status:** audit + attack numbers regenerated 25 Sep on the fixed pipeline · smoke test: `fyp/spike/test_pipeline.py` (8/8)
-**Authoritative numbers file:** `artifacts/audit/report_numbers.md` (+ `artifacts/runs/whitebox_eval.json`)
+**Status:** audit + white-box + text-level + retriever baseline numbers regenerated 25 Sep · smoke test: `fyp/spike/test_pipeline.py` (8/8)
+**Authoritative numbers file:** `artifacts/audit/report_numbers.md` (+ `artifacts/runs/whitebox_eval.json`, `artifacts/runs/text_eval.json`, `artifacts/runs/decoder_baseline.json`)
 
 ## DONE for the interim report
 
@@ -27,21 +27,38 @@
   "Bugs fixed"). Audit replicated on `checkpoint_high_entropy.pt` (also 100%
   one-step flips; collisions much worse, 84.2%): `artifacts/audit_high_entropy/`.
 - **Black-box query-only stub**: a plumbing check only, not a reportable result.
+- **Text-level attack v1 (25 Sep)** — rule-based rewrites through the real
+  encoder (`fyp/attack/text_edits.py`, `run_text_eval.py`). Benign-edit
+  stability: 2,500 meaning-preserving edits (500 items × 5 operators) change
+  the full semantic ID in **60.4%** of cases and the level-0 code in **27.4%**
+  (mean cos 0.992; noise floor from re-encoding identical text is 0.5%/1.5%).
+  Greedy keyword steering onto the high-traffic prefix: **30% ASR** (24% at
+  cos ≥ 0.95) on 50 near-boundary items, mean 1.9 keyword edits. Calibration:
+  even at cos ∈ [0.99, 1.0] one edit in five flips level 0, so cos ≥ 0.95
+  does not certify semantic preservation.
+- **TIGER retriever baseline (25 Sep)** — upstream decoder trained on the
+  published tokenizer at local scale (t5-small-ish T5, 10k iters, batch 640):
+  **Recall@1 0.023 / Recall@5 0.053 / Recall@10 0.073 / NDCG 0.045**
+  (`artifacts/runs/decoder_baseline.json`, checkpoint
+  `artifacts/checkpoints/decoder/amazon/checkpoint_9999.pt`).
 - **Retriever-ready data** — `sequences.parquet` (22,363 users, upstream split
   protocol) for the generative retriever.
 - **Reproducibility** — README guides, exact commands, upstream workarounds
-  documented, MIT attribution.
+  documented (incl. the Windows torch.compile/triton launcher), MIT
+  attribution.
 
 ## RESERVED for the final report
 
-- **Textual realisation of attacks** — HotFlip-style token substitution and
-  LLM-guided rewrites ranked by embedding-space progress (attack v2).
+- **LLM-guided textual attacks** — HotFlip-style token substitution and
+  LLM-paraphrase/rewrite search ranked by embedding-space progress (attack
+  v2; the v1 interface already accepts any `text -> text` operator).
 - **Black-box LLM/evolutionary search** — query-only seller threat model with
   rewrite budgets.
-- **Downstream impact study** — train the T5/TIGER retriever on
-  `sequences.parquet`; measure Δ exposure/recommendation share of steered items
-  and catalogue-wide Δ Recall@K / NDCG@K.
+- **Downstream impact study** — the retriever is trained (above); measure
+  Δ exposure/recommendation share of steered items and catalogue-wide
+  Δ Recall@K / NDCG@K.
 - **Defences** — boundary-margin regularisation, stochastic quantization,
   embedding-drift anomaly detection; adaptive re-attack evaluation.
 - **Cross-category / ablations** — Sports/Toys, 2023 categories, codebook size
-  and depth, t5-small vs t5-base.
+  and depth, t5-small vs t5-base; paper-scale retriever (t5-base, full
+  iterations) on the cluster.

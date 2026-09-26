@@ -18,7 +18,8 @@ the model track and attack track can run in parallel.
 |---|---|
 | `fyp/common/` | data prep, embeddings/semantic IDs, sequences, shared paths |
 | `fyp/audit/` | margin/sensitivity/steerability metrics, catalogue runner, report figures |
-| `fyp/attack/` | white-box targeted flip, black-box stub, constraints, eval runner |
+| `fyp/attack/` | white-box targeted flip, black-box stub, constraints, text edits, eval runners |
+| `fyp/eval/` | retriever baseline launcher (Windows torch.compile workaround) |
 | `fyp/spike/` | end-to-end verification + throwaway experiments |
 | `artifacts/` | every pipeline output (embeddings, IDs, audit tables/figures, runs) |
 | `configs/` | our gin configs (upstream defaults overridden: paths, wandb off) |
@@ -64,8 +65,14 @@ $PY -m fyp.audit.report_figures
 # 5. White-box attack evaluation on audit-flagged items (any-flip, bestseller
 #    prefix, full-ID bestseller collision, high-traffic prefix; cosine >= 0.95
 #    and the original embedding norm enforced by projection for every goal)
-#    -> artifacts/runs/whitebox_eval.{json,csv}   [~10-30 min]
+#    -> artifacts/runs/whitebox_eval.{json,csv}   [~30 min]
 $PY -m fyp.attack.run_whitebox_eval --n-per-set 200 --cosine 0.95 --level 0
+
+# 5b. Text-level evaluation: benign-edit ID stability (paraphrase calibration)
+#     + greedy keyword steering onto the high-traffic prefix, all with real
+#     listing text re-encoded through sentence-t5-xxl
+#     -> artifacts/runs/text_eval.json, text_eval_examples.md   [~30-60 min]
+$PY -m fyp.attack.run_text_eval --n-benign 500 --n-attack 50
 
 # 6. (Optional, Phase 1 model track) semantic-ID sequences for the retriever
 $PY -m fyp.common.prepare_sequences
@@ -94,6 +101,11 @@ report_figures ──► artifacts/audit/{fig_*.png, tab_summary_stats.csv,
      │
 run_whitebox_eval ──► artifacts/runs/whitebox_eval.{json,csv}
      ▲ (reads audit_items.csv to select near-boundary items)
+run_text_eval ──► artifacts/runs/text_eval.json, text_eval_examples.md
+     ▲ (reads audit_items.csv + items.parquet; re-encodes edited texts
+       through sentence-t5-xxl and re-quantizes)
+train_decoder_baseline ──► artifacts/checkpoints/decoder/amazon/checkpoint_*.pt
+                           (Recall@K/NDCG printed every full_eval_every iters)
 prepare_sequences ──► artifacts/semantic_ids/sequences.parquet (retriever input)
 test_pipeline ── end-to-end regression check (writes nothing)
 ```
@@ -145,12 +157,16 @@ test_pipeline ── end-to-end regression check (writes nothing)
 # tokenizer (or reuse the published checkpoint: RQ-VAE-Recommender-main/
 # trained_models/rqvae_amazon_beauty/checkpoint_399999.pt — already used above)
 $PY RQ-VAE-Recommender-main/train_rqvae.py configs/rqvae_beauty_fyp.gin
-# retriever (t5-small locally; t5-base on the cluster)
-$PY RQ-VAE-Recommender-main/train_decoder.py configs/decoder_beauty_fyp.gin
+# retriever (t5-small locally; t5-base on the cluster). The launcher patches
+# torch.compile to eager — see "Known upstream issues" #5.
+$PY -m fyp.eval.train_decoder_baseline configs/decoder_beauty_fyp.gin
 ```
 
 Our gin configs redirect all dataset caches and checkpoints into
 `artifacts/` and disable wandb; the upstream tree is never written to.
+The decoder prints hits@1/5/10 + NDCG over the full eval split every
+`train.full_eval_every` iterations and saves the final checkpoint under
+`artifacts/checkpoints/decoder/amazon/`.
 
 ## Known upstream issues & our workarounds (upstream files untouched)
 
@@ -170,6 +186,11 @@ Our gin configs redirect all dataset caches and checkpoints into
    upstream processor runs.
 4. **Google Drive extract file-lock (Windows)** — the post-extract rename can
    hit a transient `PermissionError`; the download retries up to 3 times.
+5. **`torch.compile` needs triton (no Windows build)** — upstream
+   `train_decoder.py` compiles the model and `modules/rqvae.py` decorates a
+   method with `@torch.compile(...)`; both crash on Windows. The launcher
+   `fyp/eval/train_decoder_baseline.py` patches `torch.compile` to eager mode
+   at runtime (same numerics, ~10-30% slower).
 
 First-run cost: dataset zip download (seconds) + one-time sentence-t5-xxl
 encoding of the ~12k-item catalogue (~30-60 min on the 4080 Super, cached in
