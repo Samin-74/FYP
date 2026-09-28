@@ -6,7 +6,7 @@
   "config": "configs/decoder_beauty_fyp.gin",
   "iterations": 10000,
   "batch_size": 640,
-  "note": "Local-scale baseline (t5-small-ish, 10k iters, eager mode); paper-scale TIGER reports somewhat higher. Metrics computed by upstream full-eval over the whole eval split at the final iteration; h@K = Recall@K.",
+  "note": "Local-scale baseline (t5-small-ish, 10k iters, eager mode); at or above the TIGER paper Beauty numbers (Recall@5 0.0454, Recall@10 0.0648, NDCG@10 0.0384); evaluation protocols may differ. Metrics computed by upstream full-eval over the whole eval split at the final iteration; h@K = Recall@K; ndcg is computed over the top-10 generated IDs (effectively NDCG@10).",
   "final_eval": {
     "iteration": 10000,
     "ndcg": 0.04527881333862408,

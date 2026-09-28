@@ -24,21 +24,29 @@
   bestseller prefix 69.5%/72.0%, full-ID collision 13.5%/17.0%. The earlier
   figures (92.0% / 47.5% / 16.5%) came from code with a broken cosine
   projection and a margin search that went the wrong way (see root README,
-  "Bugs fixed"). Audit replicated on `checkpoint_high_entropy.pt` (also 100%
-  one-step flips; collisions much worse, 84.2%): `artifacts/audit_high_entropy/`.
+  "Bugs fixed"). Any-flip succeeds within one 0.05 step, so its ‖δ‖ is an
+  upper bound (≤ 0.05), not a measured minimum. Audit replicated on
+  `checkpoint_high_entropy.pt` (shipped with upstream, training setup
+  undocumented; also 100% one-step flips; collisions much worse, 84.2%):
+  `artifacts/audit_high_entropy/`.
 - **Black-box query-only stub**: a plumbing check only, not a reportable result.
 - **Text-level attack v1 (25 Sep)** — rule-based rewrites through the real
-  encoder (`fyp/attack/text_edits.py`, `run_text_eval.py`). Benign-edit
-  stability: 2,500 meaning-preserving edits (500 items × 5 operators) change
-  the full semantic ID in **60.4%** of cases and the level-0 code in **27.4%**
-  (mean cos 0.992; noise floor from re-encoding identical text is 0.5%/1.5%).
-  Greedy keyword steering onto the high-traffic prefix: **30% ASR** (24% at
-  cos ≥ 0.95) on 50 near-boundary items, mean 1.9 keyword edits. Calibration:
+  encoder (`fyp/attack/text_edits.py`, `run_text_eval.py`). ID stability
+  under surface-level perturbations (not guaranteed paraphrases): 2,500 edits
+  (500 items × 5 operators) change the full semantic ID in **60.4%** of edits
+  and the level-0 code in **27.4%** (mean cos 0.992; noise floor from
+  re-encoding identical text is 0.5%/1.5%). Greedy keyword stuffing onto the
+  high-traffic prefix (vocabulary mined from popular items, including other
+  brands' names, so the edits are not faithful rewrites): **30% ASR** = 15/50
+  (95% CI ≈ 19–44%; 24% at cos ≥ 0.95) on the 50 smallest-margin items, mean
+  1.9 keyword edits. Calibration:
   even at cos ∈ [0.99, 1.0] one edit in five flips level 0, so cos ≥ 0.95
   does not certify semantic preservation.
 - **TIGER retriever baseline (25 Sep)** — upstream decoder trained on the
   published tokenizer at local scale (t5-small-ish T5, 10k iters, batch 640):
   **Recall@1 0.023 / Recall@5 0.053 / Recall@10 0.073 / NDCG 0.045**
+  (NDCG effectively @10) — at or above the TIGER paper's Beauty numbers
+  (Recall@10 0.0648, NDCG@10 0.0384); the evaluation protocols may differ
   (`artifacts/runs/decoder_baseline.json`, checkpoint
   `artifacts/checkpoints/decoder/amazon/checkpoint_9999.pt`).
 - **Retriever-ready data** — `sequences.parquet` (22,363 users, upstream split
@@ -46,6 +54,43 @@
 - **Reproducibility** — README guides, exact commands, upstream workarounds
   documented (incl. the Windows torch.compile/triton launcher), MIT
   attribution.
+
+## Known limitations (future improvements)
+
+Method limits in the current code, found in the pre-interim audit. The
+reported numbers are computed correctly; these limit what they can show.
+Left unchanged for the interim.
+
+1. **Sensitivity resolution.** `min_flip_perturbation_batch` moves in fixed
+   0.05 steps and every sampled item flips on step 1, so sensitivity is only
+   known to be ≤ 0.05 (p1–p95 all ≈ 0.0499–0.0500). Fix: smaller steps or a
+   bisection line search along the gradient direction.
+2. **Degenerate figures.** Because of (1), steerability = exp(−sens/τ) ≈ e⁻¹
+   for almost every item, and `fig_steerability_vs_popularity.png`,
+   `fig_steerability_vs_desclen.png` and `fig_sensitivity_by_category.png`
+   plot a near-constant (the category plot's spread is in the 5th decimal,
+   i.e. norm-projection noise). Regenerate after (1) or leave out.
+3. **No-op spelling edits.** `spelling_variants` only changes titles
+   containing one of six words, so most of its 500 "edits" are identical text
+   and its 1.0% flip rate is mostly the 0.5% re-encoding noise floor. Count
+   only edits whose text changed.
+4. **Other operators are not paraphrases.** Word shuffle scrambles titles,
+   word dropout can remove key words, case/punctuation stripping splits
+   numbers ("12.5" → "12 5"), field reorder changes the platform template.
+   Real paraphrases (LLM) are needed for a meaning-preserving claim.
+5. **Steering vocabulary.** Keywords are mined from popular items on the
+   target prefix and include other brands' product names ("olay",
+   "regenerist"). Restrict to item-faithful vocabulary or add an equivalence
+   judge before claiming faithful steering.
+6. **Reference embedding.** Benign edits are compared with the stored
+   embeddings rather than a fresh encoding of the unedited text, so the
+   0.5%/1.5% re-encoding noise is mixed into every flip rate.
+7. **"High-traffic prefix" definition.** Chosen as the most frequent level-0
+   code among the top-1% (~121) most popular items; total interactions per
+   prefix over the whole catalogue would be more robust.
+8. **Generated wording.** `fyp/audit/report_figures.py` still writes
+   "Median perturbation … 0.050" into `report_numbers.md`; the committed copies
+   were annotated by hand and will lose the note on regeneration.
 
 ## RESERVED for the final report
 
