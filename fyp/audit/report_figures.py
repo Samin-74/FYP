@@ -257,7 +257,10 @@ def report_numbers_md(df, summary):
         "",
         f"- Flip rate on the sample: **{s['flip_rate']:.1%}**.",
         f"- Median perturbation of flippable items (tau): **{s['tau_median']:.3f}** (L2 in"
-        " 768-d Sentence-T5 embedding space).",
+        " 768-d Sentence-T5 embedding space). Note:"
+        f" {s['step_size']:g} is the search step size and every item flipped on the"
+        " first step, so this is an upper bound (sensitivity <="
+        f" {s['step_size']:g}), not a measured minimum.",
         "",
         "## Popularity regression (margin vs log-interactions)",
         "",
