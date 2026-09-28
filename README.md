@@ -42,7 +42,7 @@ FYP/
 │   └── spike/                     ← end-to-end smoke test (runs, not results)
 ├── artifacts/                     ← results: report files (figures/numbers/JSONs) committed;
 │   │                                data, embeddings, checkpoints regenerable (git-ignored)
-│   ├── audit/                     ← audit tables + 7 figures + report_numbers.md
+│   ├── audit/                     ← audit tables + 5 figures + report_numbers.md
 │   ├── audit_high_entropy/        ← same audit, high-entropy checkpoint
 │   ├── semantic_ids/              ← per-item IDs, codebooks, retriever sequences
 │   ├── embeddings/                ← 768-d Sentence-T5 catalogue embeddings
@@ -62,7 +62,7 @@ PY=.venv/Scripts/python.exe        # see fyp/README.md for env setup (uv)
 $PY -m fyp.common.prepare_data                      # one-time data+embeddings (~1 h)
 $PY -m fyp.common.generate_semantic_ids             # semantic IDs + margins
 $PY -m fyp.audit.run_audit --sensitivity-sample 2048
-$PY -m fyp.audit.report_figures                     # 7 figures + report_numbers.md
+$PY -m fyp.audit.report_figures                     # 5 figures + report_numbers.md
 $PY -m fyp.attack.run_whitebox_eval --n-per-set 200 --cosine 0.95 --level 0
 $PY -m fyp.attack.run_text_eval                     # text-level: benign edits + steering (~40 min)
 $PY -m fyp.eval.train_decoder_baseline configs/decoder_beauty_fyp.gin   # TIGER baseline (~1.5 h)

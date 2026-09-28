@@ -44,7 +44,7 @@ equal; each week lists the concrete artefacts produced.
 
 | Person | Work |
 |---|---|
-| Samin | Automated report figure generation (`fyp/audit/report_figures.py`: 7 figures + `tab_summary_stats.csv` + `report_numbers.md`); downstream retriever data prep (`sequences.parquet`, 22,363 users); workspace cleanup (artifacts out of the upstream tree, .gitignore, licensing/attribution), root README + THIRD_PARTY_NOTICES. |
+| Samin | Automated report figure generation (`fyp/audit/report_figures.py`: figures + `tab_summary_stats.csv` + `report_numbers.md`); downstream retriever data prep (`sequences.parquet`, 22,363 users); workspace cleanup (artifacts out of the upstream tree, .gitignore, licensing/attribution), root README + THIRD_PARTY_NOTICES. |
 | Ibrahim | Constraint enforcement inside the white-box optimiser (cosine projection ≥ 0.95, norm preservation); evaluation runner (`run_whitebox_eval.py`) with four goals (any-flip, bestseller prefix, full-ID bestseller collision, high-traffic prefix) and a random-item comparison set; zero-order black-box stub (plumbing check, not a result); `fyp/README.md` reproduction guide; end-to-end smoke test (`fyp/spike/test_pipeline.py`). |
 
 ## Week 5 (Oct 13 – 19) — Pre-interim self-review, bug fix & full re-run

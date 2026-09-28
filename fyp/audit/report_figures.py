@@ -7,11 +7,14 @@ fyp.audit.run_audit) and writes, into artifacts/audit/:
   fig_margin_cdf_by_level.png       CDF of margin relative to level median
   fig_eps_threshold_curve.png       %% within eps x median vs eps
   fig_collision_group_sizes.png     collision group size distribution (log-log)
-  fig_steerability_vs_popularity.png
-  fig_steerability_vs_desclen.png
-  fig_sensitivity_by_category.png
+  fig_margin_vs_desclen.png         relative margin vs description length
   tab_summary_stats.csv             one flat table of headline numbers
   report_numbers.md                 every key number, labelled, for the report
+
+Sensitivity-vs-item-property figures were dropped: with the 0.05 step size
+every sampled item flips on step 1, so sensitivity is a near-constant and
+those plots carried no information (see docs/interim_checkpoint.md, known
+limitations).
 
 Usage:
   python -m fyp.audit.report_figures
@@ -123,24 +126,7 @@ def _binned_median(x, y, n_bins=12):
     return np.array(cx), np.array(med)
 
 
-def fig_steerability_vs_popularity(df):
-    d = df.filter(pl.col("flipped_l0").is_not_null() & (pl.col("n_interactions").is_not_null()))
-    x = np.log1p(d["n_interactions"].to_numpy())
-    y = d["sensitivity_l0"].to_numpy()
-    fin = np.isfinite(y)
-    cx, med = _binned_median(x[fin], y[fin])
-    fig, ax = plt.subplots(figsize=(6, 4))
-    ax.scatter(x[fin], y[fin], s=4, alpha=0.15, label="items (flippable)")
-    ax.plot(cx, med, color="red", lw=2, label="binned median")
-    ax.set_xlabel("log(1 + interactions)")
-    ax.set_ylabel("sensitivity ($\\|\\delta\\|_2$ to flip level-0 code)")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(AUDIT_DIR / "fig_steerability_vs_popularity.png")
-    plt.close(fig)
-
-
-def fig_steerability_vs_desclen(df):
+def fig_margin_vs_desclen(df):
     d = df.filter(pl.col("desc_len").is_not_null())
     x = d["desc_len"].to_numpy().astype(float)
     y = d["margin_l0"].to_numpy() / np.maximum(d["d1_l0"].to_numpy(), 1e-12)
@@ -152,26 +138,7 @@ def fig_steerability_vs_desclen(df):
     ax.set_ylabel("relative boundary margin $(d_2-d_1)/d_1$, level 0")
     ax.legend()
     fig.tight_layout()
-    fig.savefig(AUDIT_DIR / "fig_steerability_vs_desclen.png")
-    plt.close(fig)
-
-
-def fig_sensitivity_by_category(df, top_n=8):
-    cats = (
-        df.group_by("category").len().sort("len", descending=True)["category"][:top_n].to_list()
-    )
-    d = df.filter(pl.col("category").is_in(cats) & pl.col("flipped_l0"))
-    data = [d.filter(pl.col("category") == c)["sensitivity_l0"].to_numpy() for c in cats]
-    counts = [len(a) for a in data]
-    fig, ax = plt.subplots(figsize=(7, 4))
-    bp = ax.boxplot(data, tick_labels=[f"{c}\n(n={n})" for c, n in zip(cats, counts)],
-                    showfliers=False)
-    plt.setp(ax.get_xticklabels(), rotation=15, ha="right", fontsize=8)
-    ax.set_ylabel("sensitivity ($\\|\\delta\\|_2$ to flip level-0 code)")
-    ax.set_xlabel("category (top %d by item count)" % top_n)
-    plt.setp(bp["medians"], color="red")
-    fig.tight_layout()
-    fig.savefig(AUDIT_DIR / "fig_sensitivity_by_category.png")
+    fig.savefig(AUDIT_DIR / "fig_margin_vs_desclen.png")
     plt.close(fig)
 
 
@@ -278,8 +245,7 @@ def report_numbers_md(df, summary):
         "- `fig_margin_cdf_by_level.png` — within-factor CDF.",
         "- `fig_eps_threshold_curve.png` — epsilon-threshold curve.",
         "- `fig_collision_group_sizes.png` — collision group sizes.",
-        "- `fig_steerability_vs_popularity.png` / `fig_steerability_vs_desclen.png` /",
-        "  `fig_sensitivity_by_category.png` — steerability vs item properties.",
+        "- `fig_margin_vs_desclen.png` — relative margin vs description length.",
     ]
     (AUDIT_DIR / "report_numbers.md").write_text("\n".join(lines), encoding="utf-8")
 
@@ -292,9 +258,7 @@ def main():
     fig_margin_cdf(df, summary)
     fig_eps_curve(df, summary)
     fig_collision_sizes(df)
-    fig_steerability_vs_popularity(df)
-    fig_steerability_vs_desclen(df)
-    fig_sensitivity_by_category(df)
+    fig_margin_vs_desclen(df)
     summary_table(df, summary).write_csv(AUDIT_DIR / "tab_summary_stats.csv")
     report_numbers_md(df, summary)
     print("[report] wrote figures + tab_summary_stats.csv + report_numbers.md to artifacts/audit/")

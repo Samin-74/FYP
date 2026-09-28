@@ -38,5 +38,4 @@ Note: "within eps x median" is relative to the level's own median margin, so it 
 - `fig_margin_cdf_by_level.png` — within-factor CDF.
 - `fig_eps_threshold_curve.png` — epsilon-threshold curve.
 - `fig_collision_group_sizes.png` — collision group sizes.
-- `fig_steerability_vs_popularity.png` / `fig_steerability_vs_desclen.png` /
-  `fig_sensitivity_by_category.png` — steerability vs item properties.
+- `fig_margin_vs_desclen.png` — relative margin vs description length.
