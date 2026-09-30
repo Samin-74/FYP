@@ -1,12 +1,17 @@
 {
   "model": "EncoderDecoderRetrievalModel (TIGER-style T5 decoder)",
-  "t5": {"d_model": 384, "num_heads": 6, "d_ff": 1024, "num_layers": 4},
+  "t5": {
+    "d_model": 384,
+    "num_heads": 6,
+    "d_ff": 1024,
+    "num_layers": 4
+  },
   "tokenizer": "RQ-VAE-Recommender-main/trained_models/rqvae_amazon_beauty/checkpoint_399999.pt (published, 3x256)",
   "dataset": "classic Amazon Beauty 5-core (12,101 items, 22,363 users)",
   "config": "configs/decoder_beauty_fyp.gin",
   "iterations": 10000,
   "batch_size": 640,
-  "note": "Local-scale baseline (t5-small-ish, 10k iters, eager mode); at or above the TIGER paper Beauty numbers (Recall@5 0.0454, Recall@10 0.0648, NDCG@10 0.0384); evaluation protocols may differ. Metrics computed by upstream full-eval over the whole eval split at the final iteration; h@K = Recall@K; ndcg is computed over the top-10 generated IDs (effectively NDCG@10).",
+  "note": "Local-scale baseline (t5-small-ish, 10k iters, eager mode). Metrics are computed by upstream full-eval over the whole eval split at the final iteration; h@K = Recall@K; ndcg is computed over the top-10 generated IDs (effectively NDCG@10). These are SEMANTIC-ID-LEVEL metrics: upstream generates only the 3-code prefix (dedup token stripped) and counts a hit when the prefix matches, so a hit identifies a collision group (27% of items share a prefix), not an item. Not comparable with the TIGER paper's item-level Beauty numbers (Recall@5 0.0454, Recall@10 0.0648, NDCG@10 0.0384). Generation samples candidates, so values vary between runs.",
   "final_eval": {
     "iteration": 10000,
     "ndcg": 0.04527881333862408,
@@ -15,5 +20,6 @@
     "recall@10": 0.0729329696373474
   },
   "checkpoint": "artifacts/checkpoints/decoder/amazon/checkpoint_9999.pt",
-  "train_time": "1h27m (RTX 4080 SUPER, eager)"
+  "train_time": "1h27m (RTX 4080 SUPER, eager)",
+  "metric_level": "semantic-ID prefix (3 codes), not item"
 }

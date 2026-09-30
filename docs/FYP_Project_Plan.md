@@ -31,14 +31,25 @@ candidate-retrieval with a two-stage pipeline:
 
 Existing adversarial attacks on recommenders (shilling/profile-injection
 attacks, gradient attacks on rankers, poisoning of interaction data) all
-target the **downstream ranker or the training data**. No published work
-targets the **quantization layer** itself.
+target the **downstream ranker or the training data**. Closest to this project,
+text-rewriting attacks edit item descriptions to promote items in text-aware
+and LLM-based recommenders (ATR, CIKM 2024; ID-free / LLM-agent attacks,
+2024), but they attack continuous text representations end to end. We found
+no published work that targets the **discrete quantization layer** (semantic
+IDs) itself: its boundary geometry, ID collisions, or defences at that layer.
+This must be re-checked before the final report.
 
 **Research question:** Can a seller, by rewriting only their product
 description, push the item's embedding across an RQ-VAE Voronoi cell
 boundary — forcing an ID collision with a bestseller or landing on a
 high-traffic code prefix — and thereby gain recommendation share, *while the
 description remains semantically faithful to the true product*?
+
+*Scope note:* in the classic Beauty data the encoded text is the template
+`Title; Brand; Categories; Price`. A seller controls the title (and plausibly
+the price); the category list and the template itself are platform-controlled.
+"Product description" in this project therefore means the listing title unless
+stated otherwise.
 
 **Why this matters:** the attack requires no fake users, no interaction
 injection, and no access to the ranker — only the ability to edit one's own
@@ -247,6 +258,21 @@ judge) as an upper bound.
 - Shilling / profile-injection attacks (Lam & Riedl; Burke et al.).
 - Data-poisoning and adversarial item-promotion attacks on neural
   recommenders (e.g. AUSH and follow-ups).
+
+**Text-rewriting attacks on recommenders (closest prior work)**
+- *Adversarial Text Rewriting for Text-aware Recommender Systems* (ATR),
+  CIKM 2024, arXiv 2408.00312.
+- *ID-Free Not Risk-Free: LLM-Powered Agents Unveil Risks in ID-Free
+  Recommender Systems*, arXiv 2409.11690.
+- *Poison-RAG* (ECIR 2025, arXiv 2501.11759); LLM-driven poisoning of
+  embedding-based retrieval-augmented recommenders (arXiv 2505.05196).
+
+**Semantic-ID evaluation and quantization robustness**
+- *Faithful Evaluation of Semantic-ID Tokenizers for Generative
+  Recommendation* (arXiv 2605.25330): SID-level metrics overstate item-level
+  Hit@10 under collisions (affects our baseline numbers).
+- Dong & Mao, *Adversarial Defenses via Vector Quantization* (arXiv
+  2305.13651) — VQ as a defence; relevant to Phase 5.
 
 **Adversarial text**
 - HotFlip (Ebrahimi et al.), BERT-Attack, TextAttack framework (Morris et al.).

@@ -145,9 +145,20 @@ def run(
     AUDIT_DIR.mkdir(parents=True, exist_ok=True)
 
     # --- semantic IDs + margins (cached if already generated for this corpus)
-    if SEMANTIC_IDS_PARQUET.exists():
+    # (regenerated if the cached IDs came from a different checkpoint)
+    meta_path = SEMANTIC_IDS_PARQUET.parent / "meta.json"
+    cached_ckpt = (
+        json.loads(meta_path.read_text()).get("checkpoint")
+        if meta_path.exists() else None
+    )
+    if SEMANTIC_IDS_PARQUET.exists() and cached_ckpt == str(checkpoint):
         sem = pl.read_parquet(SEMANTIC_IDS_PARQUET)
     else:
+        if SEMANTIC_IDS_PARQUET.exists():
+            print(
+                f"[audit] cached semantic IDs are from {cached_ckpt}, not"
+                f" {checkpoint}; regenerating"
+            )
         sem = run_semantic_ids(checkpoint)
     if limit:
         sem = sem.head(limit)

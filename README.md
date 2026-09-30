@@ -12,13 +12,16 @@ steal recommendation share, without touching the ranker?*
 
 Findings so far: the published RQ-VAE checkpoint on classic Amazon Beauty
 5-core (12,101 items) leaves 19.0% of items needing a dedup token (≈27% share
-their full ID with another item); every sampled item's level-0 code flips with
-a single embedding perturbation of norm ≤ 0.05 (the search's step size, so an
-upper bound); **surface-level text perturbations change the full semantic ID in
+their full ID with another item); every sampled item's level-0 code flips
+within the search budget, at least 95% of them after a single embedding step
+of norm 0.05 (the search's step size, so an upper bound, not a measured
+minimum); **surface-level text perturbations change the full semantic ID in
 60% of edits**; and greedy keyword stuffing (mined from popular items,
 including other brands' names) steers 30% of 50 near-boundary items onto the
 high-traffic level-0 prefix. A local-scale TIGER retriever baseline is trained
-(Recall@10 0.073). The earlier
+(semantic-ID-level Recall@10 0.073; not comparable to the paper's item-level
+numbers, see below). Whether a steered ID actually gains the item
+recommendations is **not yet measured** (downstream-impact study). The earlier
 headline figures (92% any-flip at cos ≥ 0.95, etc.) came from buggy code and
 are **invalid** — the numbers below are the re-run (25 Sep) on the fixed
 pipeline.
@@ -89,7 +92,7 @@ enforced by projection, n = 200 per set, level 0):
 
 | Finding | Number |
 |---|---|
-| Sensitivity flip rate (sample of 2,048) | **100%**, all within one gradient step, so ‖δ‖ ≤ 0.05 (the step size; the reported median 0.050 is the step size, not a measured minimum); effective budget 10 |
+| Sensitivity flip rate (sample of 2,048) | **100%** within the budget; ≥ 95% after one gradient step (sensitivity p95 0.050, p99 0.092, so a small tail needed a second step). ‖δ‖ ≤ 0.05 is an upper bound set by the step size; the reported median 0.050 is the step size, not a measured minimum; effective budget 10 |
 | Any-flip ASR | **100%** near-boundary, **100%** random (mean cos 0.9987 = one 0.05 step on the unit sphere, far inside the 0.95 budget) |
 | High-traffic prefix ASR | **97.0%** near-boundary, **98.5%** random (mean cos ≈ 0.983) |
 | Bestseller prefix ASR (level-0 code of a top-1% item) | 69.5% near-boundary, 72.0% random (mean cos ≈ 0.976) |
@@ -98,19 +101,21 @@ enforced by projection, n = 200 per set, level 0):
 Read-outs from the re-run:
 
 - The quantizer is **far more fragile than the buggy numbers suggested**: the
-  wrong-way search understated flippability. Any item's level-0 code moves with
-  ‖δ‖ ≤ 0.05 on the unit sphere (cos ≥ 0.9987). The true minimum is below the
-  search's resolution; for scale, the median distance to the nearest *other*
-  product is ≈ 0.32 (cos 0.949).
+  wrong-way search understated flippability. At least 95% of sampled items'
+  level-0 codes move with ‖δ‖ ≤ 0.05 on the unit sphere (cos ≥ 0.9987), the
+  rest within about two steps. The true minimum is below the search's
+  resolution; for scale, the median distance to the nearest *other* product is
+  ≈ 0.32 (cos 0.949).
 - **Near-boundary ≈ random everywhere** — when every item flips trivially,
   margin-based target selection adds nothing.
 - **The cos ≥ 0.95 budget is weak for this catalogue**: 48.5% of items already
   have a *different* product within cos 0.95 (median nearest-other-item cosine
   0.949). Successes satisfy the constraint yet need not preserve the product.
 - **Not a quirk of one checkpoint**: the same audit on
-  `checkpoint_high_entropy.pt` (shipped with upstream; its training setup is
-  undocumented) also gives a 100% one-step flip rate (margins ~4× larger, still
-  ≤ one 0.05 step). Its full-ID collision rate is much *worse* — 84.2% (1,908
+  `checkpoint_high_entropy.pt` (shipped with upstream; iteration 169,999,
+  rotation-trick quantizer, otherwise undocumented) also gives a 100% one-step
+  flip rate (its raw margins are ~4× larger, but they live in a different
+  latent space, so the two checkpoints' margins are not directly comparable). Its full-ID collision rate is much *worse* — 84.2% (1,908
   unique IDs; 92.1% of items in a colliding group) — so a second tokenizer
   checkpoint does not yield more unique full IDs.
   (`artifacts/audit_high_entropy/`).
@@ -148,11 +153,19 @@ semantically faithful rewrite can steer an item.
 upstream decoder trained on the published tokenizer (t5-small-scale T5,
 10k iterations, batch 640, 1h27m local): **Recall@1 0.023, Recall@5 0.053,
 Recall@10 0.073, NDCG 0.045** (upstream's NDCG is computed over the top-10
-generated IDs, i.e. effectively NDCG@10). This is at or above the TIGER paper's
-Beauty numbers (Recall@5 0.0454, Recall@10 0.0648, NDCG@10 0.0384), not
-below them; differences in the evaluation protocol (split, dedup handling,
-beam search) may explain the gap, so the paper figures are a reference rather
-than a like-for-like comparison. The checkpoint (`artifacts/checkpoints/decoder/amazon/
+generated IDs, i.e. effectively NDCG@10).
+
+**These are semantic-ID-level metrics, not item-level ones, and must not be
+compared directly with the TIGER paper** (Recall@5 0.0454, Recall@10 0.0648,
+NDCG@10 0.0384). Upstream's decoder generates only the 3-code prefix (the
+dedup token is stripped) and `train_decoder.py` counts a hit when that prefix
+matches the target's (`actual = sem_ids_fut[:, :vae_n_layers]`). With 27% of
+items sharing their prefix (largest group 248 items), a hit identifies a
+collision group, not an item, which inflates Recall/NDCG; prefix-level metrics
+have been shown to overstate item-level Hit@10 by up to ~2× (arXiv 2605.25330).
+Generation also samples candidates (`torch.multinomial`), so the numbers vary
+between runs. Item-level metrics over several seeds are needed before any
+comparison with the paper. The checkpoint (`artifacts/checkpoints/decoder/amazon/
 checkpoint_9999.pt`) is the substrate for the downstream-impact study.
 
 ### Known limitations (to improve; numbers above are unaffected)
@@ -161,13 +174,22 @@ These are method limits in the current code, not errors in the reported
 numbers. They are left as they are for the interim and listed in full in
 [docs/interim_checkpoint.md](docs/interim_checkpoint.md#known-limitations-future-improvements).
 
-- Sensitivity search resolution is the 0.05 step size, so every value reads ≈ 0.050.
-- The steerability/sensitivity figures (vs popularity, description length,
-  category) therefore plot a near-constant; their visible variation is noise.
+- Sensitivity search resolution is the 0.05 step size, so most values read ≈ 0.050.
+  A bisection along the gradient on synthetic unit-norm inputs suggests the
+  true minimum is roughly an order of magnitude smaller (median ≈ 0.004);
+  this has not yet been measured on the catalogue.
+- The steerability/sensitivity figures (vs popularity, category) therefore
+  plotted a near-constant and were dropped.
 - Most `spelling` edits are no-ops and still count as edits.
 - The steering vocabulary includes other brands' product names.
+- Text steering has no control condition (random or unrelated keywords), so
+  the share of the 30% that is due to *targeting* rather than general ID churn
+  is unknown.
 - Benign edits are compared with stored (not freshly re-encoded) embeddings;
   "high-traffic prefix" is picked from ~121 top items only.
+- Retriever metrics are semantic-ID-level (collision groups), not item-level.
+- No downstream result yet: nothing so far shows that a steered item gains
+  recommendation share.
 
 ### Bugs fixed (why the old attack numbers are invalid)
 

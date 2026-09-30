@@ -22,7 +22,7 @@ Note: "within eps x median" is relative to the level's own median margin, so it 
 ## Flip sensitivity (margin gradient descent, level 0, random sample of 2,048 items, reachable ||delta|| <= 10, norm-preserving, no cosine constraint)
 
 - Flip rate on the sample: **100.0%**.
-- Median perturbation of flippable items (tau): **0.050** (L2 in 768-d Sentence-T5 embedding space). Note: 0.05 is the search step size and every item flipped on the first step, so this is an upper bound (sensitivity <= 0.05), not a measured minimum.
+- Median perturbation of flippable items (tau): **0.050** (L2 in 768-d Sentence-T5 embedding space). Note: 0.05 is the search step size and at least 95% of flipped items flipped on the first step (sensitivity p95 0.050, p99 0.092), so the median is an upper bound (sensitivity <= 0.05), not a measured minimum.
 
 ## Popularity regression (margin vs log-interactions)
 

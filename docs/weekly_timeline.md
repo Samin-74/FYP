@@ -38,7 +38,7 @@ equal; each week lists the concrete artefacts produced.
 | Person | Work |
 |---|---|
 | Samin | Batched GPU ID/margin computation; per-item `semantic_ids.parquet` (codes + d1 + margins, 3 levels); codebook dumps; popularity table from interaction logs (`popularity.parquet`). |
-| Ibrahim | Boundary-margin metric formalized (d2 − d1, residual space, upstream assignment rule); batched gradient sensitivity on a 2,048-item sample wired into `run_audit`; steerability composite (exp(−sens/τ)); collision-group analysis (983 colliding groups, largest 248); popularity/margin regressions (R² ≈ 0 — manipulability is popularity-independent). |
+| Ibrahim | Boundary-margin metric formalized (d2 − d1, residual space, upstream assignment rule); batched gradient sensitivity on a 2,048-item sample wired into `run_audit`; steerability composite (exp(−sens/τ)); collision-group analysis (983 colliding groups, largest 248); popularity/margin regressions (R² ≈ 0 — boundary margin is unrelated to popularity). |
 
 ## Week 4 (Oct 6 – 12) — White-box attack suite & figure pipeline
 
@@ -51,21 +51,21 @@ equal; each week lists the concrete artefacts produced.
 
 | Person | Work |
 |---|---|
-| Ibrahim | Self-review found seven bugs invalidating the first attack numbers (wrong-way margin search, broken cosine-projection bisection, unconstrained any-flip, norm loophole, prefix-only "bestseller collision", flip-rate denominator, unreachable budget label); fixes on main + interim; full pipeline re-run from semantic IDs onward. Re-run headline: 100% of the 2,048-item sample flips within one 0.05-norm step; constrained white-box ASR regenerated (traffic prefix 97–98.5%, bestseller prefix ~70%, full-ID collision 13.5–17%). |
-| Samin | Checkpoint-robustness replication: audit on `checkpoint_high_entropy.pt` (also 100% one-step flips; 84.2% collision rate — entropy balancing does not yield unique IDs). Embedding-geometry calibration added to the audit (norm percentiles; nearest-other-item cosine — 48.5% of items have another product within cos 0.95). Category-extraction fix (second-level category) and figure regeneration. |
+| Ibrahim | Self-review found seven bugs invalidating the first attack numbers (wrong-way margin search, broken cosine-projection bisection, unconstrained any-flip, norm loophole, prefix-only "bestseller collision", flip-rate denominator, unreachable budget label); fixes on main + interim; full pipeline re-run from semantic IDs onward. Re-run headline: 100% of the 2,048-item sample flips within the budget, ≥ 95% within one 0.05-norm step (p99 0.092); constrained white-box ASR regenerated (traffic prefix 97–98.5%, bestseller prefix ~70%, full-ID collision 13.5–17%). |
+| Samin | Checkpoint-robustness replication: audit on `checkpoint_high_entropy.pt` (also 100% one-step flips; 84.2% collision rate — a second checkpoint does not yield more unique IDs). Embedding-geometry calibration added to the audit (norm percentiles; nearest-other-item cosine — 48.5% of items have another product within cos 0.95). Category-extraction fix (second-level category) and figure regeneration. |
 
 ## Week 6 (Oct 20 – 26) — Text-level attack v1
 
 | Person | Work |
 |---|---|
-| Ibrahim | Rule-based text operators (`fyp/attack/text_edits.py`): benign edits (spelling variants, word shuffle/dropout, case/punctuation, field reorder) and seller steering edits (keyword append/prepend, brand swap). Benign-edit stability run (500 items × 5 ops): **60.4% of meaning-preserving edits change the full semantic ID, 27.4% flip level 0** (mean cos 0.992). Greedy keyword steering onto the high-traffic prefix: **30% ASR** (24% at cos ≥ 0.95), mean 1.9 edits. |
+| Ibrahim | Rule-based text operators (`fyp/attack/text_edits.py`): benign edits (spelling variants, word shuffle/dropout, case/punctuation, field reorder) and seller steering edits (keyword append/prepend, brand swap). Benign-edit stability run (500 items × 5 ops): **60.4% of surface-level edits (not guaranteed paraphrases) change the full semantic ID, 27.4% flip level 0** (mean cos 0.992). Greedy keyword steering onto the high-traffic prefix: **30% ASR** (24% at cos ≥ 0.95), mean 1.9 edits. |
 | Samin | Encoder-consistency harness (fresh vs cached encodings: median cos 0.9999999, full-ID agreement 98.5% — the noise floor for all flip rates); target-prefix vocabulary mining (top-1% popular items on code 208); attack-examples write-up (`text_eval_examples.md`); Windows torch.compile/triton workaround for upstream training entry points. |
 
 ## Week 7 (Oct 27 – Nov 2) — TIGER baseline & interim assembly — *pivot checkpoint Nov 2*
 
 | Person | Work |
 |---|---|
-| Samin | TIGER decoder baseline on the published tokenizer (`configs/decoder_beauty_fyp.gin`, 10k iterations, t5-small-scale T5): **Recall@1 0.023 / Recall@5 0.053 / Recall@10 0.073 / NDCG 0.045**; checkpoint archived (`artifacts/checkpoints/decoder/amazon/`); baseline numbers file (`artifacts/runs/decoder_baseline.json`). |
+| Samin | TIGER decoder baseline on the published tokenizer (`configs/decoder_beauty_fyp.gin`, 10k iterations, t5-small-scale T5): **Recall@1 0.023 / Recall@5 0.053 / Recall@10 0.073 / NDCG 0.045** (semantic-ID-level, i.e. prefix hits over collision groups — not comparable with the paper's item-level numbers); checkpoint archived (`artifacts/checkpoints/decoder/amazon/`); baseline numbers file (`artifacts/runs/decoder_baseline.json`). |
 | Ibrahim | Interim results assembly: audit tables + figures, white-box and text-level attack tables, calibration arguments (cosine budget, margin-threshold caveats), threats-to-validity section. |
 | Both | Interim report draft: motivation, methodology, preliminary results, revised plan & risk management. **Nov 2 pivot checkpoint:** embedding-space *and* text-level feasibility confirmed; downstream impact on the trained retriever is the open question for Phase 4. |
 
