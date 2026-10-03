@@ -22,7 +22,9 @@ Note: "within eps x median" is relative to the level's own median margin, so it 
 ## Flip sensitivity (margin gradient descent, level 0, random sample of 2,048 items, reachable ||delta|| <= 10, norm-preserving, no cosine constraint)
 
 - Flip rate on the sample: **100.0%**.
-- Median perturbation of flippable items (tau): **0.050** (L2 in 768-d Sentence-T5 embedding space). Note: 0.05 is the search step size and at least 95% of flipped items flipped on the first step (sensitivity p95 0.050, p99 0.092), so the median is an upper bound (sensitivity <= 0.05), not a measured minimum.
+- Median perturbation of flippable items (tau): **0.050** (L2 in 768-d Sentence-T5 embedding space). Note: 0.05 is the search step size and 97.1% of flipped items flipped on the first step (sensitivity p99 0.092), so the median is an upper bound (sensitivity <= 0.05), not a measured minimum.
+
+- Measured flip distance (25-iteration bisection on the final search segment, n = 2,048 flipped items): median **0.0044**, mean 0.0087, p5 0.0003, p95 0.0322, p99 0.0627; **75.1%** flip within ||delta|| <= 0.01 (5x below the search step size). This replaces the step-size upper bound with a measured value (still an upper bound on the true minimum: heuristic descent direction, distance along the search path).
 
 ## Popularity regression (margin vs log-interactions)
 
@@ -39,3 +41,4 @@ Note: "within eps x median" is relative to the level's own median margin, so it 
 - `fig_eps_threshold_curve.png` — epsilon-threshold curve.
 - `fig_collision_group_sizes.png` — collision group sizes.
 - `fig_margin_vs_desclen.png` — relative margin vs description length.
+- `fig_sensitivity_bisect_hist.png` — measured flip-distance distribution (bisection).

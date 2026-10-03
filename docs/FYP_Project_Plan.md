@@ -247,6 +247,9 @@ judge) as an upper bound.
 
 ## 8. Key Literature (starting reading list)
 
+Full annotated bibliography with verified citations:
+[docs/literature_review.md](literature_review.md) (3 Oct 2026).
+
 **Generative retrieval / semantic IDs**
 - Rajput et al., *Recommender Systems with Generative Retrieval* (TIGER), NeurIPS 2023.
 - Zhou et al. / follow-ups on semantic-ID recommendation: LETTER (learnable
@@ -320,7 +323,7 @@ Everything in the interim, plus:
 
 ## 12. Deliverables Checklist
 
-- [ ] Annotated bibliography (end of Phase 0)
+- [x] Annotated bibliography (end of Phase 0) — `docs/literature_review.md` (3 Oct)
 - [ ] Reproduced TIGER baseline with paper-matching metrics (Phase 1)
 - [ ] Feasibility spike verdict + pivot decision (2 Nov)
 - [ ] Manipulability audit: framework + catalogue-wide results (Phase 2)

@@ -1,6 +1,9 @@
 # Virtual environment
 .venv/
 
+# Agent session scratch (superpowers workspace/ledger)
+.superpowers/
+
 # Python runtime artifacts
 __pycache__/
 *.pyc

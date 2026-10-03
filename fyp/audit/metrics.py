@@ -142,6 +142,7 @@ def min_flip_perturbation_batch(
     batch: int = 512,
     cosine_threshold: float | None = None,
     keep_norm: bool = True,
+    record_pre: bool = False,
 ) -> dict:
     """Batched version of :func:`min_flip_perturbation` over many items.
 
@@ -150,7 +151,10 @@ def min_flip_perturbation_batch(
     out of further updates via an active mask.
 
     Returns dict of (N,) tensors: flipped, perturbation_norm, steps,
-    original_id, flipped_id, and final embeddings ``x``.
+    original_id, flipped_id, and final embeddings ``x``. With
+    ``record_pre=True`` also returns ``x_pre``: for flipped items the last
+    iterate whose code still equalled the original (the input for
+    :func:`bisect_flip_distance`).
     """
     model.eval()
     out = {
@@ -161,10 +165,13 @@ def min_flip_perturbation_batch(
         "flipped_id": [],
         "x": [],
     }
+    if record_pre:
+        out["x_pre"] = []
     for i in range(0, X0.shape[0], batch):
         res = _flip_batch(
             model, X0[i : i + batch].to(DEVICE).float(), level,
             max_steps, step_size, norm_cap, cosine_threshold, keep_norm,
+            record_pre,
         )
         for k, v in res.items():
             out[k].append(v)
@@ -172,7 +179,8 @@ def min_flip_perturbation_batch(
 
 
 def _flip_batch(
-    model, x0, level, max_steps, step_size, norm_cap, cosine_threshold, keep_norm
+    model, x0, level, max_steps, step_size, norm_cap, cosine_threshold, keep_norm,
+    record_pre: bool = False,
 ) -> dict:
     x = x0.detach().clone().requires_grad_(True)
     orig_id = assigned_id_at_level(model, x0, level)
@@ -182,6 +190,7 @@ def _flip_batch(
     pnorm = torch.full((n,), float(norm_cap), device=x0.device)
     steps_t = torch.full((n,), float(max_steps), device=x0.device)
     flipped_id = orig_id.clone()
+    pre_flip = x0.detach().clone() if record_pre else None
 
     for step in range(max_steps):
         if x.grad is not None:
@@ -189,6 +198,8 @@ def _flip_batch(
         m = margin_at_level(model, x, level)
         m.sum().backward()
         with torch.no_grad():
+            if record_pre:
+                x_before = x.detach().clone()
             g = x.grad
             gn = g.norm(dim=1, keepdim=True)
             gn = torch.where(gn < 1e-12, torch.ones_like(gn), gn)
@@ -211,6 +222,8 @@ def _flip_batch(
             dn = (x - x0).norm(dim=1, keepdim=True)
             new_id = assigned_id_at_level(model, x, level)
             just_flipped = active & (new_id != orig_id)
+            if record_pre:
+                pre_flip[just_flipped] = x_before[just_flipped]
             flipped |= just_flipped
             pnorm[just_flipped] = dn.squeeze(1)[just_flipped]
             steps_t[just_flipped] = float(step + 1)
@@ -219,7 +232,7 @@ def _flip_batch(
             if not active.any():
                 break
 
-    return {
+    out = {
         "flipped": flipped,
         "perturbation_norm": pnorm,
         "steps": steps_t,
@@ -227,6 +240,50 @@ def _flip_batch(
         "flipped_id": flipped_id,
         "x": x.detach(),
     }
+    if record_pre:
+        out["x_pre"] = pre_flip
+    return out
+
+
+@torch.no_grad()
+def bisect_flip_distance(
+    model,
+    x0: torch.Tensor,
+    x_pre: torch.Tensor,
+    x_post: torch.Tensor,
+    orig_id: torch.Tensor,
+    level: int = 0,
+    n_bisect: int = 25,
+    keep_norm: bool = True,
+    batch: int = 2048,
+) -> torch.Tensor:
+    """Measured flip distance: bisect the segment on which each item flipped.
+
+    ``x_pre`` is the last search iterate whose level code still equals the
+    original and ``x_post`` the first that differs (both from
+    :func:`min_flip_perturbation_batch` with ``record_pre=True``). Bisection
+    on that segment (midpoints re-projected to the original norm) brackets the
+    flip to ~||x_post - x_pre|| / 2**n_bisect. The returned distance is the L2
+    norm of the smallest bracketed *flipping* point found, so it is a measured
+    flip distance rather than a step-size artefact. It remains an upper bound
+    on the true minimum (the descent direction is heuristic), and it is the
+    distance along the search path, not the geodesic to the nearest boundary.
+    """
+    dists = torch.full((x0.shape[0],), float("inf"))
+    for i in range(0, x0.shape[0], batch):
+        xb0 = x0[i : i + batch].to(DEVICE).float()
+        lo = x_pre[i : i + batch].to(DEVICE).float()
+        hi = x_post[i : i + batch].to(DEVICE).float()
+        orig = orig_id[i : i + batch].to(DEVICE)
+        for _ in range(n_bisect):
+            mid = (lo + hi) / 2
+            if keep_norm:
+                mid = project_to_norm(xb0, mid)
+            flips = (assigned_id_at_level(model, mid, level) != orig)[:, None]
+            hi = torch.where(flips, mid, hi)
+            lo = torch.where(flips, lo, mid)
+        dists[i : i + batch] = (hi - xb0).norm(dim=1).cpu()
+    return dists
 
 
 def steerability(sensitivity: torch.Tensor, tau: float) -> torch.Tensor:

@@ -8,13 +8,17 @@ fyp.audit.run_audit) and writes, into artifacts/audit/:
   fig_eps_threshold_curve.png       %% within eps x median vs eps
   fig_collision_group_sizes.png     collision group size distribution (log-log)
   fig_margin_vs_desclen.png         relative margin vs description length
+  fig_sensitivity_bisect_hist.png   measured flip-distance distribution
+                                    (only when the audit ran with bisection)
   tab_summary_stats.csv             one flat table of headline numbers
   report_numbers.md                 every key number, labelled, for the report
 
-Sensitivity-vs-item-property figures were dropped: with the 0.05 step size
-every sampled item flips on step 1, so sensitivity is a near-constant and
-those plots carried no information (see docs/interim_checkpoint.md, known
-limitations).
+Sensitivity-vs-item-property figures were dropped: at the 0.05 search
+resolution almost every sampled item flips on step 1, so the step-resolved
+sensitivity is a near-constant and those plots carried no information (see
+docs/interim_checkpoint.md, known limitations). The bisection refinement in
+run_audit measures the actual flip distance; its distribution is
+fig_sensitivity_bisect_hist.png.
 
 Usage:
   python -m fyp.audit.report_figures
@@ -142,6 +146,32 @@ def fig_margin_vs_desclen(df):
     plt.close(fig)
 
 
+def fig_sensitivity_bisect(df):
+    """Histogram of bisection-measured flip distances (skipped if absent)."""
+    cols = [c for c in df.columns if c.startswith("sensitivity_bisect_l")]
+    if not cols:
+        return
+    d = df[cols[0]].to_numpy()
+    d = d[np.isfinite(d)]
+    if d.size == 0:
+        return
+    fig, ax = plt.subplots(figsize=(6, 4))
+    bins = np.logspace(np.log10(max(d.min(), 1e-5)), np.log10(d.max() * 1.05), 50)
+    ax.hist(d, bins=bins, color=LEVEL_COLORS[0], alpha=0.8)
+    ax.axvline(
+        float(np.median(d)), color="black", ls="--", lw=1,
+        label=f"median {np.median(d):.4f}",
+    )
+    ax.axvline(0.05, color="red", ls=":", lw=1.2, label="search step size 0.05")
+    ax.set_xscale("log")
+    ax.set_xlabel("measured level-0 flip distance (L2, bisection along search segment)")
+    ax.set_ylabel("items")
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(AUDIT_DIR / "fig_sensitivity_bisect_hist.png")
+    plt.close(fig)
+
+
 def summary_table(df, summary):
     rows = {}
     s = summary["sensitivity"]
@@ -157,6 +187,9 @@ def summary_table(df, summary):
     rows["nn_cosine_p50"] = summary["embedding_geometry"]["nn_cosine_p50"]
     rows["frac_nn_cosine_ge_0.95"] = summary["embedding_geometry"]["frac_nn_cosine_ge"]["0.95"]
     rows["sensitivity_tau_median"] = s["tau_median"]
+    if s.get("bisection"):
+        rows["sensitivity_bisect_median"] = s["bisection"]["flip_distance_p50"]
+        rows["sensitivity_bisect_p95"] = s["bisection"]["flip_distance_p95"]
     for k in LEVELS:
         L = summary[f"level_{k}"]
         rows[f"l{k}_margin_median"] = L["margin_median"]
@@ -238,6 +271,22 @@ def report_numbers_md(df, summary):
         f" median is an upper bound (sensitivity <= {s['step_size']:g}), not a"
         " measured minimum.",
         "",
+    ]
+    if s.get("bisection"):
+        b = s["bisection"]
+        lines += [
+            f"- Measured flip distance ({b['n_bisect_iters']}-iteration bisection on"
+            f" the final search segment, n = {b['n_flipped']:,} flipped items):"
+            f" median **{b['flip_distance_p50']:.4f}**, mean {b['mean']:.4f},"
+            f" p5 {b['flip_distance_p5']:.4f}, p95 {b['flip_distance_p95']:.4f},"
+            f" p99 {b['flip_distance_p99']:.4f}; **{b['frac_le_0.01']:.1%}** flip within"
+            " ||delta|| <= 0.01 (5x below the search step size). This replaces the"
+            " step-size upper bound with a measured value (still an upper bound on"
+            " the true minimum: heuristic descent direction, distance along the"
+            " search path).",
+            "",
+        ]
+    lines += [
         "## Popularity regression (margin vs log-interactions)",
         "",
         "| Level | slope | R^2 |",
@@ -256,6 +305,11 @@ def report_numbers_md(df, summary):
         "- `fig_collision_group_sizes.png` — collision group sizes.",
         "- `fig_margin_vs_desclen.png` — relative margin vs description length.",
     ]
+    if s.get("bisection"):
+        lines.append(
+            "- `fig_sensitivity_bisect_hist.png` — measured flip-distance"
+            " distribution (bisection)."
+        )
     (AUDIT_DIR / "report_numbers.md").write_text("\n".join(lines), encoding="utf-8")
 
 
@@ -268,6 +322,7 @@ def main():
     fig_eps_curve(df, summary)
     fig_collision_sizes(df)
     fig_margin_vs_desclen(df)
+    fig_sensitivity_bisect(df)
     summary_table(df, summary).write_csv(AUDIT_DIR / "tab_summary_stats.csv")
     report_numbers_md(df, summary)
     print("[report] wrote figures + tab_summary_stats.csv + report_numbers.md to artifacts/audit/")

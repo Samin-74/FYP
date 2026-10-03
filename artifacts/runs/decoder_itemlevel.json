@@ -1,0 +1,198 @@
+{
+  "model": "EncoderDecoderRetrievalModel (TIGER-style T5 decoder)",
+  "t5": {
+    "d_model": 384,
+    "num_heads": 6,
+    "d_ff": 1024,
+    "num_layers": 4
+  },
+  "tokenizer": "RQ-VAE-Recommender-main/trained_models/rqvae_amazon_beauty/checkpoint_399999.pt (published, 3x256)",
+  "dataset": "classic Amazon Beauty 5-core (12,101 items, 22,363 users)",
+  "config": "configs/decoder_beauty_fyp.gin",
+  "checkpoint": "artifacts/checkpoints/decoder/amazon/checkpoint_9999.pt",
+  "eval_split": "test (SeqData is_train=False; same split as decoder_baseline.json)",
+  "n_eval": 22363,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "metric_definitions": {
+    "prefix": "upstream TopKAccumulator: hit iff a generated 3-code prefix equals the target's prefix (collision-group hit)",
+    "item_strict": "prefix hit AND the target's prefix is unique in the catalogue (group size 1), so the generated ID identifies the item",
+    "item_fractional": "prefix hit credited 1/group_size (expected item-level recall under uniform tie-breaking inside a collision group)"
+  },
+  "collision_structure": {
+    "frac_items_unique_prefix": 0.7290306687355042,
+    "mean_inv_group_size_items": 0.8102635145187378,
+    "note": "item-level ceiling: strict recall can never exceed frac_items_unique_prefix for prefix-only generation"
+  },
+  "per_seed": [
+    {
+      "prefix": {
+        "recall@1": 0.023342127621517685,
+        "recall@5": 0.05325761302150874,
+        "recall@10": 0.0727541027590216,
+        "ndcg@10": 0.04516190062032767
+      },
+      "n_eval": 22363,
+      "item_strict": {
+        "recall@1": 0.002459419576979833,
+        "recall@5": 0.010821446138711265,
+        "recall@10": 0.016455752805974153,
+        "ndcg@10": 0.00852102867095206
+      },
+      "item_fractional": {
+        "recall@1": 0.003044896082808441,
+        "recall@5": 0.01292237134481518,
+        "recall@10": 0.02069209871802577,
+        "ndcg@10": 0.010531808173982166
+      },
+      "seed": 0
+    },
+    {
+      "prefix": {
+        "recall@1": 0.023297410901936235,
+        "recall@5": 0.05321289630192729,
+        "recall@10": 0.0727541027590216,
+        "ndcg@10": 0.045153108376837885
+      },
+      "n_eval": 22363,
+      "item_strict": {
+        "recall@1": 0.0024147028573983814,
+        "recall@5": 0.010821446138711265,
+        "recall@10": 0.016411036086392702,
+        "ndcg@10": 0.008486169058505875
+      },
+      "item_fractional": {
+        "recall@1": 0.0029927265837376123,
+        "recall@5": 0.01289987378047286,
+        "recall@10": 0.0206259370345909,
+        "ndcg@10": 0.01048624873753018
+      },
+      "seed": 1
+    },
+    {
+      "prefix": {
+        "recall@1": 0.023386844341099135,
+        "recall@5": 0.05316817958234584,
+        "recall@10": 0.07279881947860305,
+        "ndcg@10": 0.045205843585636576
+      },
+      "n_eval": 22363,
+      "item_strict": {
+        "recall@1": 0.002459419576979833,
+        "recall@5": 0.010776729419129813,
+        "recall@10": 0.016545186245137056,
+        "ndcg@10": 0.008577627251166668
+      },
+      "item_fractional": {
+        "recall@1": 0.0030598016631097897,
+        "recall@5": 0.01281222289813171,
+        "recall@10": 0.020731574544026847,
+        "ndcg@10": 0.01056452255028228
+      },
+      "seed": 2
+    },
+    {
+      "prefix": {
+        "recall@1": 0.023342127621517685,
+        "recall@5": 0.05325761302150874,
+        "recall@10": 0.0729329696373474,
+        "ndcg@10": 0.045235766007532104
+      },
+      "n_eval": 22363,
+      "item_strict": {
+        "recall@1": 0.0024147028573983814,
+        "recall@5": 0.010821446138711265,
+        "recall@10": 0.016545186245137056,
+        "ndcg@10": 0.008535767895044328
+      },
+      "item_fractional": {
+        "recall@1": 0.0030150849451941655,
+        "recall@5": 0.012957864518147037,
+        "recall@10": 0.02081849145072627,
+        "ndcg@10": 0.01057466060857368
+      },
+      "seed": 3
+    },
+    {
+      "prefix": {
+        "recall@1": 0.023342127621517685,
+        "recall@5": 0.05334704646067164,
+        "recall@10": 0.07297768635692886,
+        "ndcg@10": 0.04527759138343639
+      },
+      "n_eval": 22363,
+      "item_strict": {
+        "recall@1": 0.0025041362965612843,
+        "recall@5": 0.010910879577874167,
+        "recall@10": 0.016589902964718507,
+        "ndcg@10": 0.008617335029670369
+      },
+      "item_fractional": {
+        "recall@1": 0.003067254445431074,
+        "recall@5": 0.012990052172415148,
+        "recall@10": 0.02084291601780195,
+        "ndcg@10": 0.010624007262798935
+      },
+      "seed": 4
+    }
+  ],
+  "mean": {
+    "prefix": {
+      "recall@1": 0.023342127621517685,
+      "recall@5": 0.05324866967759245,
+      "recall@10": 0.0728435361981845,
+      "ndcg@10": 0.045206841994754124
+    },
+    "item_strict": {
+      "recall@1": 0.0024504762330635425,
+      "recall@5": 0.010830389482627554,
+      "recall@10": 0.01650941286947189,
+      "ndcg@10": 0.00854758558106786
+    },
+    "item_fractional": {
+      "recall@1": 0.0030359527440562166,
+      "recall@5": 0.012916476942796387,
+      "recall@10": 0.020742203553034345,
+      "ndcg@10": 0.010556249466633447
+    }
+  },
+  "std": {
+    "prefix": {
+      "recall@1": 3.16194956484607e-05,
+      "recall@5": 6.632561362156637e-05,
+      "recall@10": 0.00010487000312622387,
+      "ndcg@10": 5.184134490097812e-05
+    },
+    "item_strict": {
+      "recall@1": 3.741269179153401e-05,
+      "recall@5": 4.898471202478766e-05,
+      "recall@10": 7.34770680371815e-05,
+      "ndcg@10": 5.0951947813935166e-05
+    },
+    "item_fractional": {
+      "recall@1": 3.135489085556824e-05,
+      "recall@5": 6.764902181499804e-05,
+      "recall@10": 8.95882491296958e-05,
+      "ndcg@10": 5.122502284836597e-05
+    }
+  },
+  "reference_prefix_level_baseline": {
+    "recall@1": 0.02343156106068059,
+    "recall@5": 0.05330232974109019,
+    "recall@10": 0.0729329696373474,
+    "ndcg": 0.04527881333862408,
+    "source": "artifacts/runs/decoder_baseline.json (single upstream full-eval)"
+  },
+  "tiger_paper_item_level_beauty": {
+    "recall@5": 0.0454,
+    "recall@10": 0.0648,
+    "ndcg@10": 0.0384,
+    "source": "Rajput et al. 2023 (TIGER), Table; paper-scale model + data"
+  },
+  "note": "Item-level metrics for the SAME checkpoint without retraining. The decoder only emits 3-code prefixes, so true item-level generation (with the dedup token) is impossible here; item_strict and item_fractional bound/estimate the item-level value. Comparison with the TIGER paper is indicative only: their model is paper-scale and generates full 4-token IDs."
+}

@@ -18,6 +18,21 @@
       "sensitivity_p75": 0.049990663304924965,
       "sensitivity_p95": 0.05001291688531637,
       "sensitivity_p99": 0.0917162474989891
+    },
+    "bisection": {
+      "n_bisect_iters": 25,
+      "n_flipped": 2048,
+      "mean": 0.008746273815631866,
+      "frac_le_0.005": 0.54248046875,
+      "frac_le_0.01": 0.7509765625,
+      "flip_distance_p1": 0.00010300881396688055,
+      "flip_distance_p5": 0.0003264433718868531,
+      "flip_distance_p25": 0.0017355543095618486,
+      "flip_distance_p50": 0.004389500245451927,
+      "flip_distance_p75": 0.00989671447314322,
+      "flip_distance_p95": 0.032158383540809125,
+      "flip_distance_p99": 0.06271388825029132,
+      "note": "measured flip distance: 25-iteration bisection on the final search segment; still an upper bound on the true minimum (heuristic descent direction, distance along the search path)"
     }
   },
   "collisions": {

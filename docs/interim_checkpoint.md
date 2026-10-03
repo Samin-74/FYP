@@ -1,7 +1,7 @@
 # Interim Report Checkpoint — Status
 
-**Status:** audit + white-box + text-level + retriever baseline numbers regenerated 25 Sep · smoke test: `fyp/spike/test_pipeline.py` (8/8)
-**Authoritative numbers file:** `artifacts/audit/report_numbers.md` (+ `artifacts/runs/whitebox_eval.json`, `artifacts/runs/text_eval.json`, `artifacts/runs/decoder_baseline.json`)
+**Status:** audit + white-box + text-level + retriever baseline numbers regenerated 25 Sep · 3 Oct: bisection sensitivity measured, item-level retriever metrics (5 seeds), literature review added · 4 Oct: random-keyword steering control · smoke test: `fyp/spike/test_pipeline.py` (8/8)
+**Authoritative numbers file:** `artifacts/audit/report_numbers.md` (+ `artifacts/runs/whitebox_eval.json`, `artifacts/runs/text_eval.json`, `artifacts/runs/decoder_baseline.json`, `artifacts/runs/decoder_itemlevel.json`)
 
 ## DONE for the interim report
 
@@ -41,8 +41,13 @@
   re-encoding identical text is 0.5%/1.5%). Greedy keyword stuffing onto the
   high-traffic prefix (vocabulary mined from popular items, including other
   brands' names, so the edits are not faithful rewrites): **30% ASR** = 15/50
-  (95% CI ≈ 19–44%; 24% at cos ≥ 0.95) on the 50 smallest-margin items, mean
-  1.9 keyword edits. Calibration:
+  (95% CI ≈ 19–44%; 26% at cos ≥ 0.95) on the 50 smallest-margin items, mean
+  1.8 keyword edits. A matched random-keyword control (12 uniformly random
+  catalogue-wide title words, targeted/promo words excluded; same promo
+  phrases, items, rounds and budget) steers **36%** = 18/50 (95% CI ≈ 24–50%)
+  — the intervals overlap, so targeting does not beat random keywords: the
+  text-level effect reflects boundary proximity and generic stuffing, not
+  aimed steering. Calibration:
   even at cos ∈ [0.99, 1.0] one edit in five flips level 0, so cos ≥ 0.95
   does not certify semantic preservation.
 - **TIGER retriever baseline (25 Sep)** — upstream decoder trained on the
@@ -57,6 +62,26 @@
   `artifacts/checkpoints/decoder/amazon/checkpoint_9999.pt`).
 - **Retriever-ready data** — `sequences.parquet` (22,363 users, upstream split
   protocol) for the generative retriever.
+- **Bisection sensitivity (3 Oct)** — the 0.05 step-size upper bound replaced
+  by a measured flip distance: 25-iteration bisection on the final search
+  segment of the same 2,048-item gradient search gives median **0.0044**,
+  mean 0.0087, p95 0.032, p99 0.063 (75.1% flip within ‖δ‖ ≤ 0.01) — matching
+  the ≈0.004 synthetic-vector probe. Still an upper bound on the true minimum
+  (heuristic direction). Regression gate: the re-run reproduces every
+  committed `audit_summary.json` key exactly.
+- **Item-level retriever metrics (3 Oct)** — `fyp/eval/eval_decoder_itemlevel.py`
+  scores the trained decoder checkpoint on the same test split without
+  retraining, mean ± s.d. over 5 generation seeds (n = 22,363; prefix-level
+  reproduction gate passes: R@10 0.0728 vs 0.0729 committed). Prefix-level
+  R@10 0.0728 → **item-strict 0.0165** (prefix uniquely identifies the item —
+  true for 72.9% of the catalogue) / **item-fractional 0.0207** (1/group-size
+  credit, CCE-style); NDCG@10 0.0452 → 0.0085 / 0.0106. Prefix-level metrics
+  overstate item-level retrieval ≈3.5×; at item level the local baseline is
+  below the TIGER paper (R@10 0.0648) — the honest comparison point.
+- **Literature review + annotated bibliography (3 Oct)** —
+  `docs/literature_review.md`; every reference verified against the source on
+  3 Oct 2026; positions the project against the closest prior work (ATR and
+  related text-rewriting attacks; the SID-evaluation work arXiv:2605.25330).
 - **Reproducibility** — README guides, exact commands, upstream workarounds
   documented (incl. the Windows torch.compile/triton launcher), MIT
   attribution.
@@ -67,13 +92,15 @@ Method limits in the current code, found in the pre-interim audit. The
 reported numbers are computed correctly; these limit what they can show.
 Left unchanged for the interim.
 
-1. **Sensitivity resolution.** `min_flip_perturbation_batch` moves in fixed
-   0.05 steps and ≥ 95% of sampled items flip on step 1, so sensitivity is
-   mostly only known to be ≤ 0.05 (p1–p95 all ≈ 0.0499–0.0500; p99 0.092).
-   Fix: smaller steps or a bisection line search along the gradient
-   direction. A bisection on synthetic unit-norm inputs with the published
-   checkpoint gives a median minimum flip distance of ≈ 0.004, so the real
-   catalogue value is likely well below 0.05 (to be measured).
+1. **Sensitivity resolution — resolved (3 Oct).** The fixed 0.05-step search
+   only bounded sensitivity above by the step size (≥ 95% of sampled items
+   flip on step 1). `run_audit` now also runs a 25-iteration bisection on the
+   segment between the last non-flipped and first flipped iterate
+   (`fyp/audit/metrics.py::bisect_flip_distance`), giving a measured flip
+   distance: median 0.0044, mean 0.0087, p95 0.032, p99 0.063; 75.1% of items
+   flip within ‖δ‖ ≤ 0.01. The catalogue median matches the earlier
+   synthetic-unit-vector probe (≈0.004). Still an upper bound on the true
+   minimum (heuristic descent direction, distance along the search path).
 2. **Degenerate figures — resolved (dropped).** Because of (1), steerability
    = exp(−sens/τ) ≈ e⁻¹ for almost every item, so
    `fig_steerability_vs_popularity.png` and `fig_sensitivity_by_category.png`
@@ -81,6 +108,9 @@ Left unchanged for the interim.
    i.e. norm-projection noise) and were removed from the suite.
    `fig_steerability_vs_desclen.png` was misnamed — it plots the *relative
    margin* vs description length — and is kept as `fig_margin_vs_desclen.png`.
+   The measured bisection distribution is now reported as
+   `fig_sensitivity_bisect_hist.png`; re-running the popularity/category
+   regressions against measured sensitivity is possible but deferred.
 3. **No-op spelling edits.** `spelling_variants` only changes titles
    containing one of six words, so most of its 500 "edits" are identical text
    and its 1.0% flip rate is mostly the 0.5% re-encoding noise floor. Count
@@ -102,15 +132,25 @@ Left unchanged for the interim.
 8. **Generated wording — resolved.** `fyp/audit/report_figures.py` now writes
    the upper-bound note itself (commit `6aa5fa8`) and reports the share of the
    sample that flipped on the first step instead of assuming all did.
-9. **Retriever metrics are semantic-ID-level.** Upstream's `TopKAccumulator`
-   compares only the 3-code prefix, so with 27% of items in collision groups
-   Recall/NDCG measure group hits. Prefix-level metrics can overstate
-   item-level Hit@10 by up to ~2× (arXiv 2605.25330). Fix: resolve generated
-   prefixes to items (or score with the dedup token) and average over seeds.
-10. **No control for text steering.** 27% of surface edits already flip
-    level 0, so the 30% steering ASR needs a control (random or unrelated
-    keywords, same number of rounds) to show that targeting, not general ID
-    churn, drives it.
+9. **Retriever metrics are semantic-ID-level — addressed (3 Oct).** Upstream's
+   `TopKAccumulator` compares only the 3-code prefix, so with 27% of items in
+   collision groups Recall/NDCG measure group hits. Prefix-level metrics can
+   overstate item-level Hit@10 by up to ~2× (arXiv 2605.25330). Item-level
+   metrics now exist (`artifacts/runs/decoder_itemlevel.json`, 5 seeds):
+   prefix R@10 0.0728 → item-strict 0.0165 / item-fractional 0.0207 — a ≈3.5×
+   inflation on our catalogue. Remaining caveat: the decoder only emits
+   3-code prefixes, so these are corrections of prefix-level generation, not
+   true 4-token (dedup-token) generation as in the TIGER paper; closing that
+   gap needs a decoder trained on full IDs.
+10. **Text-steering control — addressed (4 Oct), and it changes the
+    interpretation.** A random-keyword control arm (12 uniformly random
+    catalogue-wide title words with targeted/promo words excluded, the same
+    PROMO_PHRASES tail, items, rounds and budget) steers **36%** = 18/50
+    (95% CI ≈ 24–50%) versus 30% targeted — the intervals overlap, so
+    target-mined keywords do not outperform random ones. The 30% text-level
+    ASR is explained by boundary proximity (smallest-margin items) plus
+    generic keyword stuffing, not by targeting. Embedding-space steering
+    (97–100%) remains the targeted result.
 11. **Threat model: what the seller controls.** The encoded text is the
     template `Title; Brand; Categories; Price`. A seller controls the title
     (and plausibly the price), not the category list or the template, so the
@@ -126,19 +166,24 @@ Left unchanged for the interim.
     from a different checkpoint. Outputs still share `artifacts/audit/`, so
     move a run's outputs before auditing another checkpoint.
 
-## Recommended before the interim (21 Dec) — needs a re-run
+## Recommended before the interim (21 Dec)
 
 The project is well ahead of the plan, and these are cheap relative to the
-time left. They turn "IDs are easy to change" into "this can be exploited":
+time left. They turn "IDs are easy to change" into "this can be exploited".
+Three of the four re-runs landed on 3–4 Oct; only the downstream study remains:
 
 - **Small downstream-impact study** on the trained retriever: steer N items,
   re-tokenize, and measure each item's change in top-10 exposure (fix whether
   the decoder stays frozen or is retrained after re-tokenization first).
-- **Item-level retriever metrics** (limitation 9), mean ± s.d. over seeds.
-- **Bisection sensitivity** (limitation 1) → real sensitivity distribution;
-  the steerability figures become meaningful again.
-- **Steering control condition** (limitation 10), counting only edits whose
-  text changed (limitation 3).
+  **Still open.**
+- ~~**Item-level retriever metrics** (limitation 9), mean ± s.d. over seeds.~~
+  **Done 3 Oct** — `artifacts/runs/decoder_itemlevel.json` (5 seeds).
+- ~~**Bisection sensitivity** (limitation 1) → real sensitivity distribution;
+  the steerability figures become meaningful again.~~ **Done 3 Oct** — median
+  measured flip distance 0.0044 (p95 0.032); see `audit_summary.json`.
+- ~~**Steering control condition** (limitation 10), counting only edits whose
+  text changed (limitation 3).~~ **Done 4 Oct** — control ASR 36% ≥ targeted
+  30%; targeting contributes nothing measurable at text level (limitation 10).
 
 ## RESERVED for the final report
 

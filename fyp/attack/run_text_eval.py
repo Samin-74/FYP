@@ -19,6 +19,15 @@ Experiment B (greedy text steering):
   side of the white-box `traffic_prefix` goal. Reports text-level ASR, the
   cosine cost of successful rewrites, and example rewrites for the report.
 
+Experiment B-control (random-keyword steering):
+  The SAME items, rounds, candidate budget and success criterion, but the 12
+  mined keywords are replaced by 12 words drawn uniformly at random from
+  catalogue-wide title vocabulary (targeted words and promo-phrase words
+  excluded; the PROMO_PHRASES tail is kept identical so the only difference
+  between the arms is targeted-vs-random keyword choice). Without this arm,
+  the share of the targeted ASR due to *targeting* rather than general ID
+  churn is unknown (docs/interim_checkpoint.md, limitation 10).
+
 Outputs:
   artifacts/runs/text_eval.json          headline numbers
   artifacts/runs/text_eval_examples.md   sample rewrites (for the report)
@@ -26,6 +35,7 @@ Outputs:
 Usage:
   python -m fyp.attack.run_text_eval [--n-benign 500] [--n-attack 50]
                                      [--max-rounds 5] [--seed 0]
+                                     [--vocab-mode targeted|both]
 """
 
 import argparse
@@ -95,7 +105,100 @@ def level0_dist_to(model, x: torch.Tensor, code: int) -> torch.Tensor:
         return codebook_dist(model.layers[0], r)[:, code].cpu()
 
 
-def run(n_benign=500, n_attack=50, max_rounds=5, seed=0, checkpoint=str(CHECKPOINT)):
+def _greedy_steering(model, enc, vocab, cand_ids, traffic_code, texts, x_stored,
+                     max_rounds):
+    """Greedy append/prepend keyword steering; one implementation for all arms.
+
+    Round-synchronized over items: each round, every still-active item's
+    append+prepend candidates for all keywords are encoded in ONE batched call
+    (34-text per-item batches underfill the encoder batch and are ~3x slower).
+    Items are independent, so per-item choices are identical to a sequential
+    per-item loop; an item deactivates on success or greedy stall. Returns the
+    per-item records and an aggregate summary.
+    """
+    n_cand = 2 * len(vocab)
+    states = {}
+    for i in cand_ids:
+        if parse(texts[i]) is None:
+            continue
+        states[i] = {
+            "cur_text": texts[i],
+            "cur_x": x_stored[i],
+            "cur_d": float(
+                level0_dist_to(model, torch.from_numpy(x_stored[i][None]), traffic_code)[0]
+            ),
+            "applied": [],
+            "success": False,
+            "active": True,
+        }
+
+    for _round in range(max_rounds):
+        active = [i for i in states if states[i]["active"]]
+        if not active:
+            break
+        flat_cands, owner = [], []
+        for i in active:
+            for kw in vocab:
+                flat_cands.append(append_keywords(parse(states[i]["cur_text"]), [kw]))
+                owner.append("+")
+                flat_cands.append(prepend_keywords(parse(states[i]["cur_text"]), [kw]))
+                owner.append("^")
+        xc = encode_texts(enc, flat_cands)
+        dc = level0_dist_to(model, torch.from_numpy(xc), traffic_code).numpy()
+        for pos, i in enumerate(active):
+            sl = dc[pos * n_cand : (pos + 1) * n_cand]
+            best = int(sl.argmin())
+            st = states[i]
+            if float(sl[best]) >= st["cur_d"] - 1e-9:
+                st["active"] = False  # greedy stall
+                continue
+            gi = pos * n_cand + best
+            st["cur_text"] = flat_cands[gi]
+            st["cur_x"] = xc[gi]
+            st["cur_d"] = float(sl[best])
+            st["applied"].append(owner[gi] + vocab[best // 2])
+            r0 = sem_ids(model, st["cur_x"][None])[0, 0]
+            if int(r0) == traffic_code:
+                st["success"] = True
+                st["active"] = False
+
+    results = []
+    for i in states:
+        st = states[i]
+        cos_final = float(
+            np.dot(st["cur_x"], x_stored[i])
+            / (np.linalg.norm(st["cur_x"]) * np.linalg.norm(x_stored[i]))
+        )
+        results.append(
+            {
+                "item_id": int(i),
+                "success": st["success"],
+                "rounds": len(st["applied"]),
+                "keywords": st["applied"],
+                "cos_to_original": cos_final,
+                "original": texts[i],
+                "final": st["cur_text"],
+            }
+        )
+
+    ok = [r for r in results if r["success"]]
+    ok95 = [r for r in ok if r["cos_to_original"] >= 0.95]
+    summary = {
+        "n_items": len(results),
+        "n_success": len(ok),
+        "n_success_cos_ge_0.95": len(ok95),
+        "max_rounds": max_rounds,
+        "asr": len(ok) / max(1, len(results)),
+        "asr_cos_ge_0.95": len(ok95) / max(1, len(results)),
+        "mean_cos_success": float(np.mean([r["cos_to_original"] for r in ok])) if ok else None,
+        "min_cos_success": float(np.min([r["cos_to_original"] for r in ok])) if ok else None,
+        "mean_rounds_success": float(np.mean([r["rounds"] for r in ok])) if ok else None,
+    }
+    return results, summary
+
+
+def run(n_benign=500, n_attack=50, max_rounds=5, seed=0, checkpoint=str(CHECKPOINT),
+        vocab_mode="both"):
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
 
@@ -191,7 +294,8 @@ def run(n_benign=500, n_attack=50, max_rounds=5, seed=0, checkpoint=str(CHECKPOI
     )
     target_texts = [texts[i] for i in top.filter(pl.col("code_l0") == traffic_code)["item_id"].to_list()]
     stop = set("the a an of for and with set kit pack pcs oz fl ml".split())
-    vocab = title_words(target_texts, stop)[:12] + PROMO_PHRASES
+    mined = title_words(target_texts, stop)[:12]
+    vocab = mined + PROMO_PHRASES
 
     margins = audit.sort("margin_l0")
     cand_ids = [
@@ -199,61 +303,43 @@ def run(n_benign=500, n_attack=50, max_rounds=5, seed=0, checkpoint=str(CHECKPOI
         if int(margins.filter(pl.col("item_id") == i)["code_l0"][0]) != traffic_code
     ][:n_attack]
 
-    results = []
-    for i in cand_ids:
-        p0 = parse(texts[i])
-        if p0 is None:
-            continue
-        cur_text, cur_x = texts[i], x_stored[i]
-        cur_d = float(level0_dist_to(model, torch.from_numpy(cur_x[None]), traffic_code)[0])
-        applied = []
-        success = False
-        for _round in range(max_rounds):
-            cands = []
-            for kw in vocab:
-                cands.append(append_keywords(parse(cur_text), [kw]))
-                cands.append(prepend_keywords(parse(cur_text), [kw]))
-            xc = torch.from_numpy(encode_texts(enc, cands))
-            dc = level0_dist_to(model, xc, traffic_code)
-            best = int(dc.argmin())
-            if float(dc[best]) >= cur_d - 1e-9:
-                break  # greedy stall
-            cur_text, cur_x, cur_d = cands[best], xc[best].numpy(), float(dc[best])
-            applied.append(("+" if best % 2 == 0 else "^") + vocab[best // 2])
-            r0 = sem_ids(model, cur_x[None])[0, 0]
-            if int(r0) == traffic_code:
-                success = True
-                break
-        cos_final = float(
-            np.dot(cur_x, x_stored[i])
-            / (np.linalg.norm(cur_x) * np.linalg.norm(x_stored[i]))
-        )
-        results.append(
-            {
-                "item_id": int(i),
-                "success": success,
-                "rounds": len(applied),
-                "keywords": applied,
-                "cos_to_original": cos_final,
-                "original": texts[i],
-                "final": cur_text,
-            }
-        )
-
-    ok = [r for r in results if r["success"]]
-    ok95 = [r for r in ok if r["cos_to_original"] >= 0.95]
+    results, summ = _greedy_steering(
+        model, enc, vocab, cand_ids, traffic_code, texts, x_stored, max_rounds
+    )
     out["text_steering"] = {
         "target_traffic_code": traffic_code,
         "vocab": vocab,
-        "n_items": len(results),
-        "max_rounds": max_rounds,
-        "asr": len(ok) / max(1, len(results)),
-        "asr_cos_ge_0.95": len(ok95) / max(1, len(results)),
-        "mean_cos_success": float(np.mean([r["cos_to_original"] for r in ok])) if ok else None,
-        "min_cos_success": float(np.min([r["cos_to_original"] for r in ok])) if ok else None,
-        "mean_rounds_success": float(np.mean([r["rounds"] for r in ok])) if ok else None,
+        "vocab_mode": "targeted: top-12 title words of popular items on the target"
+        " prefix + PROMO_PHRASES",
+        **summ,
     }
-    print(f"[text_eval] steering: {out['text_steering']}")
+    print(f"[text_eval] steering (targeted): {out['text_steering']}")
+
+    if vocab_mode == "both":
+        # Control arm: 12 catalogue-wide title words drawn uniformly at random
+        # (targeted words and promo-phrase words excluded), the same
+        # PROMO_PHRASES tail, and the same items/rounds/candidate budget, so
+        # the only difference between the arms is targeted-vs-random keyword
+        # choice. A separate rng stream keeps the targeted arm unaffected.
+        rng_ctrl = np.random.default_rng(seed + 7919)
+        excluded = set(mined) | set(" ".join(PROMO_PHRASES).split())
+        pool = [w for w in title_words(texts, stop)[:2000] if w not in excluded]
+        ctrl_words = sorted(rng_ctrl.choice(pool, size=12, replace=False).tolist())
+        ctrl_vocab = ctrl_words + PROMO_PHRASES
+        ctrl_results, ctrl_summ = _greedy_steering(
+            model, enc, ctrl_vocab, cand_ids, traffic_code, texts, x_stored, max_rounds
+        )
+        out["text_steering_control"] = {
+            "target_traffic_code": traffic_code,
+            "vocab": ctrl_vocab,
+            "vocab_mode": "control: 12 uniformly random catalogue-wide title words"
+            " (targeted/promo words excluded) + same PROMO_PHRASES; identical items,"
+            " rounds and candidate budget as the targeted arm",
+            **ctrl_summ,
+        }
+        print(f"[text_eval] steering (control): {out['text_steering_control']}")
+
+    ok = [r for r in results if r["success"]]
 
     EVAL_JSON.write_text(json.dumps(out, indent=2), encoding="utf-8")
 
@@ -277,8 +363,21 @@ def main():
     ap.add_argument("--max-rounds", type=int, default=5)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--checkpoint", default=str(CHECKPOINT))
+    ap.add_argument(
+        "--vocab-mode",
+        choices=["targeted", "both"],
+        default="both",
+        help="'both' also runs the random-keyword control arm (default)",
+    )
     args = ap.parse_args()
-    run(args.n_benign, args.n_attack, args.max_rounds, args.seed, args.checkpoint)
+    run(
+        args.n_benign,
+        args.n_attack,
+        args.max_rounds,
+        args.seed,
+        args.checkpoint,
+        args.vocab_mode,
+    )
 
 
 if __name__ == "__main__":

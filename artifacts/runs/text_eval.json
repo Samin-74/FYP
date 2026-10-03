@@ -91,12 +91,47 @@
       "gift set",
       "new"
     ],
+    "vocab_mode": "targeted: top-12 title words of popular items on the target prefix + PROMO_PHRASES",
     "n_items": 50,
+    "n_success": 15,
+    "n_success_cos_ge_0.95": 13,
     "max_rounds": 5,
     "asr": 0.3,
-    "asr_cos_ge_0.95": 0.24,
-    "mean_cos_success": 0.9623014648755391,
-    "min_cos_success": 0.9296514391899109,
-    "mean_rounds_success": 1.8666666666666667
+    "asr_cos_ge_0.95": 0.26,
+    "mean_cos_success": 0.9638557513554891,
+    "min_cos_success": 0.9401407241821289,
+    "mean_rounds_success": 1.8
+  },
+  "text_steering_control": {
+    "target_traffic_code": 208,
+    "vocab": [
+      "aha",
+      "covergirl",
+      "day",
+      "headbands",
+      "masters",
+      "oscar",
+      "pores",
+      "rehab",
+      "safe",
+      "speed",
+      "step",
+      "yellow",
+      "bestseller",
+      "top rated",
+      "professional",
+      "gift set",
+      "new"
+    ],
+    "vocab_mode": "control: 12 uniformly random catalogue-wide title words (targeted/promo words excluded) + same PROMO_PHRASES; identical items, rounds and candidate budget as the targeted arm",
+    "n_items": 50,
+    "n_success": 18,
+    "n_success_cos_ge_0.95": 11,
+    "max_rounds": 5,
+    "asr": 0.36,
+    "asr_cos_ge_0.95": 0.22,
+    "mean_cos_success": 0.9604518214861552,
+    "min_cos_success": 0.9144577383995056,
+    "mean_rounds_success": 2.5
   }
 }

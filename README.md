@@ -13,18 +13,23 @@ steal recommendation share, without touching the ranker?*
 Findings so far: the published RQ-VAE checkpoint on classic Amazon Beauty
 5-core (12,101 items) leaves 19.0% of items needing a dedup token (≈27% share
 their full ID with another item); every sampled item's level-0 code flips
-within the search budget, at least 95% of them after a single embedding step
-of norm 0.05 (the search's step size, so an upper bound, not a measured
-minimum); **surface-level text perturbations change the full semantic ID in
-60% of edits**; and greedy keyword stuffing (mined from popular items,
+within the search budget, 97.1% of them after a single embedding step of norm
+0.05, and a bisection refinement puts the **median measured flip distance at
+0.0044** (p95 0.032) — about 70× less movement than reaching the nearest
+different product; **surface-level text perturbations change the full semantic
+ID in 60% of edits**; and greedy keyword stuffing (mined from popular items,
 including other brands' names) steers 30% of 50 near-boundary items onto the
-high-traffic level-0 prefix. A local-scale TIGER retriever baseline is trained
-(semantic-ID-level Recall@10 0.073; not comparable to the paper's item-level
-numbers, see below). Whether a steered ID actually gains the item
-recommendations is **not yet measured** (downstream-impact study). The earlier
-headline figures (92% any-flip at cos ≥ 0.95, etc.) came from buggy code and
-are **invalid** — the numbers below are the re-run (25 Sep) on the fixed
-pipeline.
+high-traffic level-0 prefix — but a matched random-keyword control steers 36%,
+so the text-level effect comes from boundary proximity and generic stuffing,
+not targeting (see below). A local-scale TIGER retriever baseline is trained: prefix-level
+Recall@10 0.073, **item-level Recall@10 0.017–0.021** (strict/fractional,
+5 seeds) — the prefix metric overstates item-level retrieval ≈3.5×, so the
+baseline sits *below* the TIGER paper's item-level numbers (see below).
+Whether a steered ID actually gains the item recommendations is **not yet
+measured** (downstream-impact study). The earlier headline figures (92%
+any-flip at cos ≥ 0.95, etc.) came from buggy code and are **invalid** — the
+numbers below are the re-run (25 Sep) on the fixed pipeline, plus the 3–4 Oct
+refinements (bisection sensitivity, item-level metrics, steering control).
 
 ## Repository layout
 
@@ -35,6 +40,7 @@ FYP/
 ├── docs/
 │   ├── FYP_Project_Plan.md        ← full project plan (source of truth)
 │   ├── weekly_timeline.md         ← dated work log & team breakdown
+│   ├── literature_review.md       ← annotated bibliography (interim report §2)
 │   └── interim_checkpoint.md      ← what is frozen for interim vs. reserved
 ├── configs/                       ← our gin configs (paths/wandb overridden)
 ├── fyp/                           ← ALL custom code (see fyp/README.md)
@@ -65,10 +71,11 @@ PY=.venv/Scripts/python.exe        # see fyp/README.md for env setup (uv)
 $PY -m fyp.common.prepare_data                      # one-time data+embeddings (~1 h)
 $PY -m fyp.common.generate_semantic_ids             # semantic IDs + margins
 $PY -m fyp.audit.run_audit --sensitivity-sample 2048
-$PY -m fyp.audit.report_figures                     # 5 figures + report_numbers.md
+$PY -m fyp.audit.report_figures                     # 6 figures + report_numbers.md
 $PY -m fyp.attack.run_whitebox_eval --n-per-set 200 --cosine 0.95 --level 0
-$PY -m fyp.attack.run_text_eval                     # text-level: benign edits + steering (~40 min)
+$PY -m fyp.attack.run_text_eval                     # text-level: benign edits + steering + random-keyword control (~2 h)
 $PY -m fyp.eval.train_decoder_baseline configs/decoder_beauty_fyp.gin   # TIGER baseline (~1.5 h)
+$PY -m fyp.eval.eval_decoder_itemlevel              # item-level metrics, 5 seeds (~15 min; needs the baseline checkpoint)
 $PY -m fyp.spike.test_pipeline --n-items 64 --n-attack 8   # smoke test (checks it runs, not results)
 ```
 
@@ -92,7 +99,7 @@ enforced by projection, n = 200 per set, level 0):
 
 | Finding | Number |
 |---|---|
-| Sensitivity flip rate (sample of 2,048) | **100%** within the budget; ≥ 95% after one gradient step (sensitivity p95 0.050, p99 0.092, so a small tail needed a second step). ‖δ‖ ≤ 0.05 is an upper bound set by the step size; the reported median 0.050 is the step size, not a measured minimum; effective budget 10 |
+| Sensitivity flip rate (sample of 2,048) | **100%** within the budget; 97.1% after one gradient step (sensitivity p99 0.092, so a small tail needed a second step). **Measured flip distance (25-iteration bisection, 3 Oct): median 0.0044, mean 0.0087, p95 0.032, p99 0.063; 75.1% flip within ‖δ‖ ≤ 0.01** — replacing the step-size upper bound ‖δ‖ ≤ 0.05; effective budget 10 |
 | Any-flip ASR | **100%** near-boundary, **100%** random (mean cos 0.9987 = one 0.05 step on the unit sphere, far inside the 0.95 budget) |
 | High-traffic prefix ASR | **97.0%** near-boundary, **98.5%** random (mean cos ≈ 0.983) |
 | Bestseller prefix ASR (level-0 code of a top-1% item) | 69.5% near-boundary, 72.0% random (mean cos ≈ 0.976) |
@@ -101,11 +108,13 @@ enforced by projection, n = 200 per set, level 0):
 Read-outs from the re-run:
 
 - The quantizer is **far more fragile than the buggy numbers suggested**: the
-  wrong-way search understated flippability. At least 95% of sampled items'
+  wrong-way search understated flippability. 97.1% of sampled items'
   level-0 codes move with ‖δ‖ ≤ 0.05 on the unit sphere (cos ≥ 0.9987), the
-  rest within about two steps. The true minimum is below the search's
-  resolution; for scale, the median distance to the nearest *other* product is
-  ≈ 0.32 (cos 0.949).
+  rest within about two steps. Bisection on the final search segment gives a
+  **measured** flip distance: median 0.0044, p95 0.032 (75% flip within 0.01).
+  For scale, the median distance to the nearest *other* product is ≈ 0.32
+  (cos 0.949) — a flip needs ~70× less movement than reaching the nearest
+  different product.
 - **Near-boundary ≈ random everywhere** — when every item flips trivially,
   margin-based target selection adds nothing.
 - **The cos ≥ 0.95 budget is weak for this catalogue**: 48.5% of items already
@@ -130,7 +139,8 @@ re-encoded through the same sentence-t5-xxl and re-quantized
 | Surface-level perturbations changing the full semantic ID | **60.4%** of 2,500 edits (500 items × 5 operators) |
 | Surface-level perturbations flipping the level-0 code | **27.4%** (spelling only 1.0%; word shuffle 39.6%; case/punctuation 34.2%; field reorder 33.8%; word dropout 28.4%) |
 | Flip rate at cos ∈ [0.99, 1.0] | **20.5%** — even near-identical text lands across a boundary |
-| Text steering ASR (greedy keyword stuffing → high-traffic prefix, 50 smallest-margin items) | **30%** = 15/50 (95% Wilson CI ≈ 19–44%; 24% at cos ≥ 0.95), mean cos of successes 0.962, mean 1.9 keyword edits |
+| Text steering ASR (greedy keyword stuffing → high-traffic prefix, 50 smallest-margin items) | **30%** = 15/50 (95% Wilson CI ≈ 19–44%; 26% at cos ≥ 0.95), mean cos of successes 0.964, mean 1.8 keyword edits |
+| ↳ random-keyword control (same items/rounds/budget; 12 random catalogue words + same promo phrases) | **36%** = 18/50 (95% CI ≈ 24–50%; 22% at cos ≥ 0.95) — targeting does **not** beat random words |
 | Encoder floor (re-encoding identical text) | level-0 agreement 99.5%, full-ID 98.5% — benign flip rates are far above this noise floor |
 
 Read-outs: fragility is **not** an embedding-space artefact — small
@@ -141,7 +151,10 @@ paraphrases: word shuffle scrambles the title, word dropout can remove key
 words, case/punctuation stripping splits numbers ("12.5" → "12 5"), field
 reorder changes the platform template rather than seller text, and most
 spelling edits leave the text unchanged. Steerability is real but bounded at
-text level: 30% by 1–2 keyword edits vs 97% with free embedding movement.
+text level: 30% by 1–2 keyword edits vs 97% with free embedding movement —
+and the random-keyword control (36% ≥ 30%, overlapping CIs) shows the
+text-level steering is **not target-specific**: near-boundary items churn
+onto the traffic prefix under any stuffing, targeted or not.
 The successful steering edits are **keyword stuffing, not faithful rewrites**:
 the vocabulary is mined from popular items on the target prefix and includes
 other brands' product names (e.g. "regenerist" added to nail glitter, "cream"
@@ -164,9 +177,29 @@ items sharing their prefix (largest group 248 items), a hit identifies a
 collision group, not an item, which inflates Recall/NDCG; prefix-level metrics
 have been shown to overstate item-level Hit@10 by up to ~2× (arXiv 2605.25330).
 Generation also samples candidates (`torch.multinomial`), so the numbers vary
-between runs. Item-level metrics over several seeds are needed before any
-comparison with the paper. The checkpoint (`artifacts/checkpoints/decoder/amazon/
-checkpoint_9999.pt`) is the substrate for the downstream-impact study.
+between runs.
+
+**Item-level re-evaluation (3 Oct, `fyp.eval.eval_decoder_itemlevel`,
+`artifacts/runs/decoder_itemlevel.json`)** — the *same* checkpoint, scored
+without retraining, mean ± s.d. over 5 generation seeds (n = 22,363 test
+users; the harness reproduces the prefix-level numbers to within 0.0001 as a
+regression gate):
+
+| Metric (Recall@10 / NDCG@10) | prefix-level (upstream) | item-strict | item-fractional |
+|---|---|---|---|
+| Recall@10 | 0.0728 ± 0.0001 | **0.0165 ± 0.0001** | **0.0207 ± 0.0001** |
+| NDCG@10 | 0.0452 ± 0.0001 | 0.0085 | 0.0106 |
+
+`item_strict` credits a hit only when the target's prefix is unique in the
+catalogue (72.9% of items); `item_fractional` credits a prefix hit by
+1/group-size — the expected item-level recall under uniform tie-breaking, in
+the spirit of Collision-Corrected Evaluation (arXiv 2605.25330). The
+prefix-level numbers therefore **overstate item-level retrieval ≈3.5×**, and
+at item level this local-scale baseline sits clearly **below** the TIGER
+paper (item-level Recall@10 0.0648, NDCG@10 0.0384) — expected at
+t5-small/10k-iteration scale, and now the honest comparison. The checkpoint
+(`artifacts/checkpoints/decoder/amazon/checkpoint_9999.pt`) is the substrate
+for the downstream-impact study.
 
 ### Known limitations (to improve; numbers above are unaffected)
 
@@ -174,20 +207,25 @@ These are method limits in the current code, not errors in the reported
 numbers. They are left as they are for the interim and listed in full in
 [docs/interim_checkpoint.md](docs/interim_checkpoint.md#known-limitations-future-improvements).
 
-- Sensitivity search resolution is the 0.05 step size, so most values read ≈ 0.050.
-  A bisection along the gradient on synthetic unit-norm inputs suggests the
-  true minimum is roughly an order of magnitude smaller (median ≈ 0.004);
-  this has not yet been measured on the catalogue.
-- The steerability/sensitivity figures (vs popularity, category) therefore
-  plotted a near-constant and were dropped.
+- ~~Sensitivity search resolution~~ **resolved (3 Oct)**: a 25-iteration
+  bisection on the final search segment measures the real flip distance —
+  median 0.0044, p95 0.032, p99 0.063 (75% ≤ 0.01). The catalogue value
+  matches the synthetic-vector probe (≈0.004) almost exactly.
+- The steerability/sensitivity figures (vs popularity, category) plotted a
+  near-constant at search resolution and were dropped; the bisection histogram
+  (`fig_sensitivity_bisect_hist.png`) now shows the measured distribution.
 - Most `spelling` edits are no-ops and still count as edits.
 - The steering vocabulary includes other brands' product names.
-- Text steering has no control condition (random or unrelated keywords), so
-  the share of the 30% that is due to *targeting* rather than general ID churn
-  is unknown.
+- Text-steering control (added 4 Oct): a random-keyword arm on the same
+  50 items steers 36% (18/50, CI ≈ 24–50%) vs 30% targeted — overlapping
+  intervals, so targeting contributes nothing measurable at text level; the
+  result reflects boundary proximity and generic stuffing, not aimed steering.
 - Benign edits are compared with stored (not freshly re-encoded) embeddings;
   "high-traffic prefix" is picked from ~121 top items only.
-- Retriever metrics are semantic-ID-level (collision groups), not item-level.
+- Retriever metrics: item-level evaluation added 3 Oct (`decoder_itemlevel.json`,
+  5 seeds). Remaining caveat: the decoder emits only 3-code prefixes, so
+  `item_strict`/`item_fractional` are corrections of prefix-level generation,
+  not true full-ID (dedup-token) generation as in the TIGER paper.
 - No downstream result yet: nothing so far shows that a steered item gains
   recommendation share.
 

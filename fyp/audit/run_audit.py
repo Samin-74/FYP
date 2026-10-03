@@ -22,6 +22,7 @@ import polars as pl
 import torch
 
 from fyp.audit.metrics import (
+    bisect_flip_distance,
     effective_budget,
     min_flip_perturbation_batch,
     steerability,
@@ -141,6 +142,8 @@ def run(
     sensitivity_sample: int = 2048,
     eps_multipliers=(0.25, 0.5, 1.0, 2.0, 5.0),
     sensitivity_level: int = 0,
+    bisection: bool = True,
+    bisect_iters: int = 25,
 ):
     AUDIT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -176,8 +179,23 @@ def run(
     res = min_flip_perturbation_batch(
         model, X_sample, level=sensitivity_level,
         max_steps=MAX_STEPS, step_size=STEP_SIZE, norm_cap=NORM_CAP,
+        record_pre=bisection,
     )
     budget = effective_budget(MAX_STEPS, STEP_SIZE, NORM_CAP)
+
+    bdist = None
+    if bisection:
+        flipped_t = res["flipped"]
+        print(f"[audit] bisecting flip segments on {int(flipped_t.sum())} flipped items...")
+        bdist = bisect_flip_distance(
+            model,
+            X_sample[flipped_t.cpu()],
+            res["x_pre"][flipped_t],
+            res["x"][flipped_t],
+            res["original_id"][flipped_t],
+            level=sensitivity_level,
+            n_bisect=bisect_iters,
+        ).numpy()
 
     sens = np.full(sem.height, np.nan, dtype=np.float64)
     flipped = np.zeros(sem.height, dtype=bool)
@@ -199,6 +217,12 @@ def run(
         pl.Series(f"flipped_l{sensitivity_level}", flipped),
         pl.Series(f"steerability_l{sensitivity_level}", steer_np),
     )
+    if bdist is not None:
+        sens_bis = np.full(sem.height, np.nan, dtype=np.float64)
+        sens_bis[idx[res["flipped"].cpu().numpy()]] = bdist
+        items = items.with_columns(
+            pl.Series(f"sensitivity_bisect_l{sensitivity_level}", sens_bis)
+        )
 
     # --- item properties: description length + category
     texts = pl.read_parquet(ITEMS_PARQUET)
@@ -255,6 +279,21 @@ def run(
             "popularity_regression": popularity_regression(items, k),
         }
 
+    if bdist is not None:
+        summary["sensitivity"]["bisection"] = {
+            "n_bisect_iters": bisect_iters,
+            "n_flipped": int(bdist.size),
+            "mean": float(bdist.mean()),
+            "frac_le_0.005": float((bdist <= 0.005).mean()),
+            "frac_le_0.01": float((bdist <= 0.01).mean()),
+            **percentile("flip_distance", bdist),
+            "note": (
+                f"measured flip distance: {bisect_iters}-iteration bisection on the"
+                " final search segment; still an upper bound on the true minimum"
+                " (heuristic descent direction, distance along the search path)"
+            ),
+        }
+
     AUDIT_SUMMARY_JSON.write_text(json.dumps(summary, indent=2))
     print(f"[audit] wrote {AUDIT_ITEMS_CSV}")
     print(f"[audit] wrote {AUDIT_SUMMARY_JSON}")
@@ -278,8 +317,23 @@ def main():
         help="report %% of items with margin < eps * median_margin",
     )
     ap.add_argument("--level", type=int, default=0)
+    ap.add_argument(
+        "--no-bisection",
+        dest="bisection",
+        action="store_false",
+        help="skip the bisection refinement of flip distances",
+    )
+    ap.add_argument("--bisect-iters", type=int, default=25)
     args = ap.parse_args()
-    run(args.checkpoint, args.limit, args.sensitivity_sample, tuple(args.eps), args.level)
+    run(
+        args.checkpoint,
+        args.limit,
+        args.sensitivity_sample,
+        tuple(args.eps),
+        args.level,
+        args.bisection,
+        args.bisect_iters,
+    )
 
 
 if __name__ == "__main__":

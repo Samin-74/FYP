@@ -40,6 +40,26 @@ equal; each week lists the concrete artefacts produced.
 | Samin | Batched GPU ID/margin computation; per-item `semantic_ids.parquet` (codes + d1 + margins, 3 levels); codebook dumps; popularity table from interaction logs (`popularity.parquet`). |
 | Ibrahim | Boundary-margin metric formalized (d2 − d1, residual space, upstream assignment rule); batched gradient sensitivity on a 2,048-item sample wired into `run_audit`; steerability composite (exp(−sens/τ)); collision-group analysis (983 colliding groups, largest 248); popularity/margin regressions (R² ≈ 0 — boundary margin is unrelated to popularity). |
 
+**Week 3 additions (3–4 Oct, post-audit refinements — both tracks, Claude-assisted):**
+
+- Bisection sensitivity measurement (`fyp/audit/metrics.py::bisect_flip_distance`,
+  wired into `run_audit`): measured flip distance on the 2,048-item sample —
+  median **0.0044**, p95 0.032, p99 0.063; 75.1% flip within ‖δ‖ ≤ 0.01.
+  Replaces the 0.05 step-size upper bound; re-run reproduces all committed
+  audit numbers exactly (regression gate).
+- Item-level retriever evaluation (`fyp/eval/eval_decoder_itemlevel.py`, 5
+  seeds, n = 22,363 test users): prefix-level R@10 0.0728 reproduced
+  (gate), item-strict 0.0165 / item-fractional 0.0207 → prefix-level metrics
+  overstate item-level retrieval ≈3.5×; baseline is below the TIGER paper at
+  item level.
+- Random-keyword steering control arm in `run_text_eval` (same 50 items,
+  rounds, budget): control **36%** (18/50, 95% CI ≈ 24–50%) vs targeted
+  **30%** (15/50) — overlapping intervals, so targeting contributes nothing
+  measurable at text level; the effect is boundary proximity + generic
+  keyword stuffing.
+- Literature review + annotated bibliography delivered
+  (`docs/literature_review.md`; references verified 3 Oct).
+
 ## Week 4 (Oct 6 – 12) — White-box attack suite & figure pipeline
 
 | Person | Work |
@@ -58,7 +78,7 @@ equal; each week lists the concrete artefacts produced.
 
 | Person | Work |
 |---|---|
-| Ibrahim | Rule-based text operators (`fyp/attack/text_edits.py`): benign edits (spelling variants, word shuffle/dropout, case/punctuation, field reorder) and seller steering edits (keyword append/prepend, brand swap). Benign-edit stability run (500 items × 5 ops): **60.4% of surface-level edits (not guaranteed paraphrases) change the full semantic ID, 27.4% flip level 0** (mean cos 0.992). Greedy keyword steering onto the high-traffic prefix: **30% ASR** (24% at cos ≥ 0.95), mean 1.9 edits. |
+| Ibrahim | Rule-based text operators (`fyp/attack/text_edits.py`): benign edits (spelling variants, word shuffle/dropout, case/punctuation, field reorder) and seller steering edits (keyword append/prepend, brand swap). Benign-edit stability run (500 items × 5 ops): **60.4% of surface-level edits (not guaranteed paraphrases) change the full semantic ID, 27.4% flip level 0** (mean cos 0.992). Greedy keyword steering onto the high-traffic prefix: **30% ASR** (26% at cos ≥ 0.95), mean 1.8 edits; random-keyword control (4 Oct, Week 3 additions): 36% — not target-specific. |
 | Samin | Encoder-consistency harness (fresh vs cached encodings: median cos 0.9999999, full-ID agreement 98.5% — the noise floor for all flip rates); target-prefix vocabulary mining (top-1% popular items on code 208); attack-examples write-up (`text_eval_examples.md`); Windows torch.compile/triton workaround for upstream training entry points. |
 
 ## Week 7 (Oct 27 – Nov 2) — TIGER baseline & interim assembly — *pivot checkpoint Nov 2*

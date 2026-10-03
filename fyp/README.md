@@ -19,7 +19,7 @@ the model track and attack track can run in parallel.
 | `fyp/common/` | data prep, embeddings/semantic IDs, sequences, shared paths |
 | `fyp/audit/` | margin/sensitivity/steerability metrics, catalogue runner, report figures |
 | `fyp/attack/` | white-box targeted flip, black-box stub, constraints, text edits, eval runners |
-| `fyp/eval/` | retriever baseline launcher (Windows torch.compile workaround) |
+| `fyp/eval/` | retriever baseline launcher (Windows torch.compile workaround) + item-level decoder evaluation |
 | `fyp/spike/` | end-to-end verification + throwaway experiments |
 | `artifacts/` | every pipeline output (embeddings, IDs, audit tables/figures, runs) |
 | `configs/` | our gin configs (upstream defaults overridden: paths, wandb off) |
@@ -54,7 +54,9 @@ $PY -m fyp.common.prepare_data
 $PY -m fyp.common.generate_semantic_ids
 
 # 3. Catalogue-wide audit: margins for all items + batched gradient sensitivity
-#    on a 2048-item sample + popularity/category/description-length joins
+#    on a 2048-item sample + bisection refinement of the flip distance
+#    (25 iterations on the final search segment; --no-bisection to skip)
+#    + popularity/category/description-length joins
 #    -> artifacts/audit/audit_items.csv, audit_summary.json   [~2 min]
 $PY -m fyp.audit.run_audit --sensitivity-sample 2048
 
@@ -69,9 +71,10 @@ $PY -m fyp.audit.report_figures
 $PY -m fyp.attack.run_whitebox_eval --n-per-set 200 --cosine 0.95 --level 0
 
 # 5b. Text-level evaluation: benign-edit ID stability (paraphrase calibration)
-#     + greedy keyword steering onto the high-traffic prefix, all with real
+#     + greedy keyword steering onto the high-traffic prefix, with a matched
+#     random-keyword control arm (default --vocab-mode both), all with real
 #     listing text re-encoded through sentence-t5-xxl
-#     -> artifacts/runs/text_eval.json, text_eval_examples.md   [~30-60 min]
+#     -> artifacts/runs/text_eval.json, text_eval_examples.md   [~2 h]
 $PY -m fyp.attack.run_text_eval --n-benign 500 --n-attack 50
 
 # 6. (Optional, Phase 1 model track) semantic-ID sequences for the retriever
@@ -106,6 +109,9 @@ run_text_eval ──► artifacts/runs/text_eval.json, text_eval_examples.md
        through sentence-t5-xxl and re-quantizes)
 train_decoder_baseline ──► artifacts/checkpoints/decoder/amazon/checkpoint_*.pt
                            (Recall@K/NDCG printed every full_eval_every iters)
+eval_decoder_itemlevel ──► artifacts/runs/decoder_itemlevel.json
+     ▲ (loads the trained decoder checkpoint; prefix-level + item-strict +
+       item-fractional metrics, mean ± s.d. over seeds)
 prepare_sequences ──► artifacts/semantic_ids/sequences.parquet (retriever input)
 test_pipeline ── end-to-end regression check (writes nothing)
 ```
@@ -122,6 +128,9 @@ test_pipeline ── end-to-end regression check (writes nothing)
 | `attack.constraints` | cosine threshold | 0.95 | semantic preservation, embedding-space proxy |
 | `audit.run_audit` | `--eps` | 0.25 0.5 1.0 2.0 5.0 | multiples of the median margin for "% within ε" |
 | `audit.run_audit` | `--level`, `--sensitivity-sample` | 0 / 2048 | which RQ level sensitivity is measured on |
+| `audit.run_audit` | `--no-bisection`, `--bisect-iters` | on / 25 | bisection refinement of the flip distance on the final search segment |
+| `attack.run_text_eval` | `--vocab-mode` | both | `both` adds the random-keyword steering control arm |
+| `eval.eval_decoder_itemlevel` | `--seeds` | 0 1 2 3 4 | generation-sampling seeds for the item-level metrics |
 
 ## Metric definitions (plan §3.5)
 
@@ -132,7 +141,16 @@ test_pipeline ── end-to-end regression check (writes nothing)
 - **Sensitivity** — smallest input-space L2 perturbation that flips the level-k
   code, estimated by *descending* the margin gradient w.r.t. `x` (staying on
   the original norm sphere) until the argmin changes. `inf` if the budget is
-  exhausted.
+  exhausted. Because the 0.05 search step is coarse, `run_audit` also reports a
+  **measured flip distance**: a 25-iteration bisection on the segment between
+  the last non-flipped and first flipped iterate (still an upper bound on the
+  true minimum — heuristic direction, distance along the search path).
+- **Item-level retriever metrics** — the upstream decoder emits only 3-code
+  prefixes, so a hit identifies a collision group. `eval_decoder_itemlevel`
+  reports: `prefix` (upstream group-hit criterion, regression gate),
+  `item_strict` (hit only if the target's prefix is unique in the catalogue),
+  and `item_fractional` (hit credited 1/group_size — expected recall under
+  uniform tie-breaking; the CCE-style correction of arXiv:2605.25330).
 - **Collisions** — `collision_rate` = 1 − unique IDs / items (items needing a
   dedup token > 0); `frac_items_in_colliding_groups` = items whose full ID is
   shared with at least one other item.
