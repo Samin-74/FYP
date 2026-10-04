@@ -47,11 +47,11 @@ FYP/
 │   ├── common/                    ← data prep, embeddings, semantic IDs, sequences
 │   ├── audit/                     ← margin/sensitivity/steerability + figures
 │   ├── attack/                    ← white-box / black-box / text-level steering + eval
-│   ├── eval/                      ← TIGER retriever baseline launcher
+│   ├── eval/                      ← TIGER retriever baseline launcher + item-level evaluation
 │   └── spike/                     ← end-to-end smoke test (runs, not results)
 ├── artifacts/                     ← results: report files (figures/numbers/JSONs) committed;
 │   │                                data, embeddings, checkpoints regenerable (git-ignored)
-│   ├── audit/                     ← audit tables + 5 figures + report_numbers.md
+│   ├── audit/                     ← audit tables + 6 figures + report_numbers.md
 │   ├── audit_high_entropy/        ← same audit, high-entropy checkpoint
 │   ├── semantic_ids/              ← per-item IDs, codebooks, retriever sequences
 │   ├── embeddings/                ← 768-d Sentence-T5 catalogue embeddings
