@@ -2,8 +2,8 @@
 
 **Status:** Phase 0 deliverable; feeds interim report §2 (literature review).
 **Provenance:** references identified during the project and the pre-interim
-audit (29 Sep 2026); every entry verified against the source (arXiv listing /
-ACM DL / project page) on **3 Oct 2026**. The positioning claim in §6 reflects
+audit; every entry verified against the source (arXiv listing /
+ACM DL / project page). The positioning claim in §6 reflects
 this non-exhaustive search and must be re-checked before the final report
 (plan §1).
 

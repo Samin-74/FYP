@@ -28,8 +28,8 @@ baseline sits *below* the TIGER paper's item-level numbers (see below).
 Whether a steered ID actually gains the item recommendations is **not yet
 measured** (downstream-impact study). The earlier headline figures (92%
 any-flip at cos ≥ 0.95, etc.) came from buggy code and are **invalid** — the
-numbers below are the re-run (25 Sep) on the fixed pipeline, plus the 3–4 Oct
-refinements (bisection sensitivity, item-level metrics, steering control).
+numbers below are the re-run on the fixed pipeline, plus refinements
+(bisection sensitivity, item-level metrics, steering control).
 
 ## Repository layout
 
@@ -93,13 +93,13 @@ workarounds: **[fyp/README.md](fyp/README.md)**.
 | Items within 0.25× median boundary margin (level 0) | 19.4%, a *relative* measure (≈16% expected for any exponential-shaped distribution), so not evidence of fragility on its own |
 | Margin–popularity correlation | R² ≤ 1e-4 (none) |
 
-**Re-run on the fixed code (25 Sep)** — sensitivity (unconstrained, norm-preserving,
+**Re-run on the fixed code** — sensitivity (unconstrained, norm-preserving,
 level 0, sample of 2,048) and white-box ASR (cos ≥ 0.95 **and** original norm
 enforced by projection, n = 200 per set, level 0):
 
 | Finding | Number |
 |---|---|
-| Sensitivity flip rate (sample of 2,048) | **100%** within the budget; 97.1% after one gradient step (sensitivity p99 0.092, so a small tail needed a second step). **Measured flip distance (25-iteration bisection, 3 Oct): median 0.0044, mean 0.0087, p95 0.032, p99 0.063; 75.1% flip within ‖δ‖ ≤ 0.01** — replacing the step-size upper bound ‖δ‖ ≤ 0.05; effective budget 10 |
+| Sensitivity flip rate (sample of 2,048) | **100%** within the budget; 97.1% after one gradient step (sensitivity p99 0.092, so a small tail needed a second step). **Measured flip distance (25-iteration bisection): median 0.0044, mean 0.0087, p95 0.032, p99 0.063; 75.1% flip within ‖δ‖ ≤ 0.01** — replacing the step-size upper bound ‖δ‖ ≤ 0.05; effective budget 10 |
 | Any-flip ASR | **100%** near-boundary, **100%** random (mean cos 0.9987 = one 0.05 step on the unit sphere, far inside the 0.95 budget) |
 | High-traffic prefix ASR | **97.0%** near-boundary, **98.5%** random (mean cos ≈ 0.983) |
 | Bestseller prefix ASR (level-0 code of a top-1% item) | 69.5% near-boundary, 72.0% random (mean cos ≈ 0.976) |
@@ -130,7 +130,7 @@ Read-outs from the re-run:
   (`artifacts/audit_high_entropy/`).
 - Black-box random search is a plumbing stub and not a reportable result.
 
-**Text-level results (25 Sep, `fyp.attack.run_text_eval`)** — real listing text,
+**Text-level results (`fyp.attack.run_text_eval`)** — real listing text,
 re-encoded through the same sentence-t5-xxl and re-quantized
 (`artifacts/runs/text_eval.json`, examples in `text_eval_examples.md`):
 
@@ -162,7 +162,7 @@ added to a bath sponge; see `text_eval_examples.md`). They show that the
 cosine check does not catch misleading edits; they do not show that a
 semantically faithful rewrite can steer an item.
 
-**TIGER retriever baseline (25 Sep, `artifacts/runs/decoder_baseline.json`)** —
+**TIGER retriever baseline (`artifacts/runs/decoder_baseline.json`)** —
 upstream decoder trained on the published tokenizer (t5-small-scale T5,
 10k iterations, batch 640, 1h27m local): **Recall@1 0.023, Recall@5 0.053,
 Recall@10 0.073, NDCG 0.045** (upstream's NDCG is computed over the top-10
@@ -179,7 +179,7 @@ have been shown to overstate item-level Hit@10 by up to ~2× (arXiv 2605.25330).
 Generation also samples candidates (`torch.multinomial`), so the numbers vary
 between runs.
 
-**Item-level re-evaluation (3 Oct, `fyp.eval.eval_decoder_itemlevel`,
+**Item-level re-evaluation (`fyp.eval.eval_decoder_itemlevel`,
 `artifacts/runs/decoder_itemlevel.json`)** — the *same* checkpoint, scored
 without retraining, mean ± s.d. over 5 generation seeds (n = 22,363 test
 users; the harness reproduces the prefix-level numbers to within 0.0001 as a
@@ -207,7 +207,7 @@ These are method limits in the current code, not errors in the reported
 numbers. They are left as they are for the interim and listed in full in
 [docs/interim_checkpoint.md](docs/interim_checkpoint.md#known-limitations-future-improvements).
 
-- ~~Sensitivity search resolution~~ **resolved (3 Oct)**: a 25-iteration
+- ~~Sensitivity search resolution~~ **resolved**: a 25-iteration
   bisection on the final search segment measures the real flip distance —
   median 0.0044, p95 0.032, p99 0.063 (75% ≤ 0.01). The catalogue value
   matches the synthetic-vector probe (≈0.004) almost exactly.
@@ -216,13 +216,13 @@ numbers. They are left as they are for the interim and listed in full in
   (`fig_sensitivity_bisect_hist.png`) now shows the measured distribution.
 - Most `spelling` edits are no-ops and still count as edits.
 - The steering vocabulary includes other brands' product names.
-- Text-steering control (added 4 Oct): a random-keyword arm on the same
+- Text-steering control: a random-keyword arm on the same
   50 items steers 36% (18/50, CI ≈ 24–50%) vs 30% targeted — overlapping
   intervals, so targeting contributes nothing measurable at text level; the
   result reflects boundary proximity and generic stuffing, not aimed steering.
 - Benign edits are compared with stored (not freshly re-encoded) embeddings;
   "high-traffic prefix" is picked from ~121 top items only.
-- Retriever metrics: item-level evaluation added 3 Oct (`decoder_itemlevel.json`,
+- Retriever metrics: item-level evaluation added (`decoder_itemlevel.json`,
   5 seeds). Remaining caveat: the decoder emits only 3-code prefixes, so
   `item_strict`/`item_fractional` are corrections of prefix-level generation,
   not true full-ID (dedup-token) generation as in the TIGER paper.
