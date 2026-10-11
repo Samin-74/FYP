@@ -1,7 +1,7 @@
 """White-box targeted steering attack, embedding space (plan section 3.6).
 
 The attacker knows the RQ-VAE and Sentence-T5 encoder (white box) and perturbs
-the item's input embedding to force a *target* code — either a single level
+the item's input embedding to force a *target* code: either a single level
 (e.g. land on a high-traffic level-0 prefix) or the full semantic ID (collide
 with a bestseller on every level). Text realisation of the perturbation
 (HotFlip / LLM rewrite ranked by embedding progress) reuses these optimisers
@@ -135,7 +135,7 @@ def targeted_collision(
     Loss = sum_k dist(r_k, c_k[t_k]) where the residual chain is built with the
     target codes (r_{k+1} = r_k - c_k[t_k]), i.e. the distance from the encoded
     item to the point the target ID reconstructs, decomposed per level. Success
-    requires every level's argmin to match — a genuine semantic-ID collision,
+    requires every level's argmin to match: a genuine semantic-ID collision,
     not just a shared prefix.
     """
     model.eval()

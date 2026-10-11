@@ -84,7 +84,7 @@ def popularity_regression(df: pl.DataFrame, level: int) -> dict:
 
 
 def collision_stats(df: pl.DataFrame, n_layers: int) -> dict:
-    """Two collision measures — report both, they answer different questions.
+    """Two collision measures; report both, they answer different questions.
 
     - ``collision_rate`` = 1 - unique/items: share of items that need a
       dedup token > 0 (the "excess" items beyond one per ID).

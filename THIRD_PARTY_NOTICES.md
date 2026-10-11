@@ -36,13 +36,13 @@ workspace-level data fixes, documented in `fyp/README.md`.
 ## Underlying research
 
 - Rajput et al., *Recommender Systems with Generative Retrieval* (TIGER),
-  NeurIPS 2023 — the generative-retrieval pipeline this project audits.
+  NeurIPS 2023: the generative-retrieval pipeline this project audits.
 - Lee et al., *Autoregressive Image Generation using Residual Quantization*
-  (RQ-VAE), 2022 — residual quantization scheme.
-- Amazon Product Data (McAuley Lab), classic Beauty 5-core — evaluation data.
+  (RQ-VAE), 2022: residual quantization scheme.
+- Amazon Product Data (McAuley Lab), classic Beauty 5-core: evaluation data.
 
 ## Model and library dependencies
 
-- `sentence-transformers/sentence-t5-xxl` (Apache 2.0) — item text encoder.
-- PyTorch (BSD-3), transformers (Apache 2.0), polars (MIT), matplotlib (PSF) —
+- `sentence-transformers/sentence-t5-xxl` (Apache 2.0): item text encoder.
+- PyTorch (BSD-3), transformers (Apache 2.0), polars (MIT), matplotlib (PSF);
   see `fyp/README.md` for the environment setup.

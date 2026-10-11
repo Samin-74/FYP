@@ -234,7 +234,7 @@ def report_numbers_md(df, summary):
         f"- Cosine to nearest *other* catalogue item: p5 {g['nn_cosine_p5']:.3f},"
         f" p50 {g['nn_cosine_p50']:.3f}, p95 {g['nn_cosine_p95']:.3f}.",
         f"- Items whose nearest distinct product already has cos >= 0.95:"
-        f" **{g['frac_nn_cosine_ge']['0.95']:.1%}** — if large, cos >= 0.95 alone does not"
+        f" **{g['frac_nn_cosine_ge']['0.95']:.1%}**. If this is large, cos >= 0.95 alone does not"
         " guarantee the listing still describes the same product.",
         "",
         "## Boundary margins (squared L2 in residual space; margin = d2 - d1)",
@@ -299,15 +299,15 @@ def report_numbers_md(df, summary):
         "",
         "## Figures",
         "",
-        "- `fig_margin_hist_by_level.png` — margin distributions.",
-        "- `fig_margin_cdf_by_level.png` — within-factor CDF.",
-        "- `fig_eps_threshold_curve.png` — epsilon-threshold curve.",
-        "- `fig_collision_group_sizes.png` — collision group sizes.",
-        "- `fig_margin_vs_desclen.png` — relative margin vs description length.",
+        "- `fig_margin_hist_by_level.png`: margin distributions.",
+        "- `fig_margin_cdf_by_level.png`: within-factor CDF.",
+        "- `fig_eps_threshold_curve.png`: epsilon-threshold curve.",
+        "- `fig_collision_group_sizes.png`: collision group sizes.",
+        "- `fig_margin_vs_desclen.png`: relative margin vs description length.",
     ]
     if s.get("bisection"):
         lines.append(
-            "- `fig_sensitivity_bisect_hist.png` — measured flip-distance"
+            "- `fig_sensitivity_bisect_hist.png`: measured flip-distance"
             " distribution (bisection)."
         )
     (AUDIT_DIR / "report_numbers.md").write_text("\n".join(lines), encoding="utf-8")

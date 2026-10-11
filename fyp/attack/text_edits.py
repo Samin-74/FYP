@@ -22,7 +22,7 @@ _FIELD_RE = re.compile(
     r"Categories: (?P<cats>\[.*?\]); Price: (?P<price>.*?);?\s*$"
 )
 
-# US/UK spelling variants — meaning-preserving by construction.
+# US/UK spelling variants, meaning-preserving by construction.
 _SPELLING = {
     "moisturizer": "moisturiser",
     "color": "colour",
@@ -33,7 +33,7 @@ _SPELLING = {
 }
 
 # Seller-vocabulary filler for the steering attack (plus title words mined
-# from items already on the target prefix — see run_text_eval).
+# from items already on the target prefix; see run_text_eval).
 PROMO_PHRASES = ["bestseller", "top rated", "professional", "gift set", "new"]
 
 _WORD_RE = re.compile(r"[A-Za-z0-9']+")

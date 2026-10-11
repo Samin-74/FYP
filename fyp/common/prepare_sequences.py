@@ -8,7 +8,7 @@ Output: artifacts/semantic_ids/sequences.parquet with columns
   user_id, item_ids (list[i64]), sem_ids (list[i64], flattened L*len codes),
   sem_id_rows (i64 = len(item_ids)), target_eval, target_test
 
-This is a *data-format* deliverable only — no T5 training here.
+This is a *data-format* deliverable only; no T5 training here.
 
 Usage:
   python -m fyp.common.prepare_sequences [--max-seq-len 20]

@@ -1,7 +1,7 @@
 # Weekly Timeline & Work Breakdown (Weeks 1–7: Sept 15 – Nov 2)
 
 Anchored to the Week-2 mentor update (Sept 22). Track split follows the
-project plan §5: **Samin — model/data track**, **Ibrahim — attack/audit
+project plan §5: **Samin, model/data track**; **Ibrahim, attack/audit
 track**; documentation and mentor checkpoints shared. Hours kept roughly
 equal; each week lists the concrete artefacts produced.
 
@@ -19,55 +19,56 @@ equal; each week lists the concrete artefacts produced.
 > superseded by the Week-5 bug fix and re-run (see below); the 19% duplicate
 > figure stands.*
 
-## Week 1 (Sept 15 – 21) — Environment & literature
+## Week 1 (Sept 15 – 21): Environment & literature
 
 | Person | Work |
 |---|---|
 | Samin | Local GPU environment (RTX 4080 SUPER): uv-managed Python 3.12 venv, CUDA torch (cu128) install, editable install of upstream RQ-VAE repo, upstream pytest sanity (15/15). Literature: TIGER (Rajput et al.), RQ-VAE (Lee et al.). |
 | Ibrahim | Literature: LETTER (tokenizer stability), adversarial text attacks (HotFlip, TextAttack), attacks-on-recommenders survey. Workspace layout + gin config overrides (`configs/`). Dataset feasibility review (classic Beauty 5-core vs 2023 dumps). |
 
-## Week 2 (Sept 22 – 28) — Data pipeline & feasibility spike — *mentor checkpoint Sept 22*
+## Week 2 (Sept 22 – 28): Data pipeline & feasibility spike (*mentor checkpoint Sept 22*)
 
 | Person | Work |
 |---|---|
 | Samin | Classic Beauty 5-core acquisition via upstream auto-download; fixed the P5_data.zip string-user-id incompatibility and Windows extract-lock retry (`fyp/common/prepare_data.py`). sentence-t5-xxl encoding pipeline (fp16; fp32 does not fit 16 GB), full-catalogue embeddings cached (`artifacts/embeddings/`). |
-| Ibrahim | Published RQ-VAE checkpoint loading (`fyp/common/generate_semantic_ids.py`); semantic IDs for all 12,101 items; **feasibility spike: 5/8 (62.5%) code flips** on a hand-picked near-boundary sample; quick duplicate-code count (≈19%). **Mentor update delivered Sept 22.** |
+| Ibrahim | Published RQ-VAE checkpoint loading (`fyp/common/generate_semantic_ids.py`); semantic IDs for all 12,101 items; **feasibility spike: 5/8 (62.5%) code flips** on a hand-picked near-boundary sample; quick duplicate-code count (≈19%). |
+| Both | **Mentor update delivered Sept 22.** First draft of the annotated bibliography (Phase 0 output), split by topic as in Week 1. |
 
-## Week 3 (Sept 29 – Oct 5) — Catalogue-wide audit
-
-| Person | Work |
-|---|---|
-| Samin | Batched GPU ID/margin computation; per-item `semantic_ids.parquet` (codes + d1 + margins, 3 levels); codebook dumps; popularity table from interaction logs (`popularity.parquet`); `run_audit` caching keyed to checkpoint (no stale semantic IDs across re-runs). |
-| Ibrahim | Boundary-margin metric formalized (d2 − d1, residual space, upstream assignment rule); batched gradient sensitivity on a 2,048-item sample wired into `run_audit`; steerability composite (exp(−sens/τ)); collision-group analysis (983 colliding groups, largest 248); popularity/margin regressions (R² ≈ 0 — boundary margin is unrelated to popularity). 25-iteration **bisection on the final search segment** measures the real flip distance — median **0.0044**, p95 0.032, p99 0.063, 75.1% within ‖δ‖ ≤ 0.01 — replacing the 0.05 step-size upper bound; exact first-step flip share **97.1%**; the near-constant steerability figures were dropped (the bisection histogram replaces them). Re-run reproduces all committed audit numbers exactly (regression gate). |
-
-## Week 4 (Oct 6 – 12) — White-box attack suite & figure pipeline
+## Week 3 (Sept 29 – Oct 5): Catalogue-wide audit
 
 | Person | Work |
 |---|---|
-| Samin | Automated report figure generation (`fyp/audit/report_figures.py`: 6 figures + `tab_summary_stats.csv` + `report_numbers.md`; the generator computes the first-step flip share itself — no assumed 100% — and renders the bisection histogram); downstream retriever data prep (`sequences.parquet`, 22,363 users); workspace cleanup (artifacts out of the upstream tree, .gitignore, licensing/attribution), root README + THIRD_PARTY_NOTICES. |
+| Samin | Batched GPU ID/margin computation; per-item `semantic_ids.parquet` (codes + d1 + margins, 3 levels); codebook dumps; popularity table from interaction logs (`popularity.parquet`); description-length and category joins for the audit. |
+| Ibrahim | Boundary-margin metric formalized (d2 − d1, residual space, upstream assignment rule); batched gradient sensitivity on a 2,048-item sample wired into `run_audit`; steerability composite (exp(−sens/τ)); collision-group analysis (983 colliding groups, largest 248); popularity/margin regressions (R² ≈ 0: boundary margin is unrelated to popularity). |
+
+## Week 4 (Oct 6 – 12): White-box attack suite & figure pipeline
+
+| Person | Work |
+|---|---|
+| Samin | Automated report figure generation (`fyp/audit/report_figures.py`: figure suite + `tab_summary_stats.csv` + `report_numbers.md`); downstream retriever data prep (`sequences.parquet`, 22,363 users); workspace cleanup (artifacts out of the upstream tree, .gitignore, licensing/attribution), root README + THIRD_PARTY_NOTICES. |
 | Ibrahim | Constraint enforcement inside the white-box optimiser (cosine projection ≥ 0.95, norm preservation); evaluation runner (`run_whitebox_eval.py`) with four goals (any-flip, bestseller prefix, full-ID bestseller collision, high-traffic prefix) and a random-item comparison set; zero-order black-box stub (plumbing check, not a result); `fyp/README.md` reproduction guide; end-to-end smoke test (`fyp/spike/test_pipeline.py`). |
 
-## Week 5 (Oct 13 – 19) — Pre-interim self-review, bug fix & full re-run
+## Week 5 (Oct 13 – 19): Pre-interim self-review, bug fix & full re-run
 
 | Person | Work |
 |---|---|
 | Ibrahim | Self-review found seven bugs invalidating the first attack numbers (wrong-way margin search, broken cosine-projection bisection, unconstrained any-flip, norm loophole, prefix-only "bestseller collision", flip-rate denominator, unreachable budget label); fixes on main + interim; full pipeline re-run from semantic IDs onward. Re-run headline: 100% of the 2,048-item sample flips within the budget, ≥ 95% within one 0.05-norm step (p99 0.092); constrained white-box ASR regenerated (traffic prefix 97–98.5%, bestseller prefix ~70%, full-ID collision 13.5–17%). |
-| Samin | Checkpoint-robustness replication: audit on `checkpoint_high_entropy.pt` (also 100% one-step flips; 84.2% collision rate — a second checkpoint does not yield more unique IDs). Embedding-geometry calibration added to the audit (norm percentiles; nearest-other-item cosine — 48.5% of items have another product within cos 0.95). Category-extraction fix (second-level category) and figure regeneration. |
+| Samin | Checkpoint-robustness replication: audit on `checkpoint_high_entropy.pt` (also 100% one-step flips; 84.2% collision rate, so a second checkpoint does not yield more unique IDs); `run_audit` caching keyed to the checkpoint (no stale semantic IDs across re-runs). Embedding-geometry calibration added to the audit (norm percentiles; nearest-other-item cosine: 48.5% of items have another product within cos 0.95). Category-extraction fix (second-level category); the report generator now writes the step-size upper-bound note and computes the first-step flip share itself (no assumed 100%); the near-constant steerability/category figures dropped. |
 
-## Week 6 (Oct 20 – 26) — Text-level attack v1
-
-| Person | Work |
-|---|---|
-| Ibrahim | Rule-based text operators (`fyp/attack/text_edits.py`): benign edits (spelling variants, word shuffle/dropout, case/punctuation, field reorder) and seller steering edits (keyword append/prepend, brand swap). Benign-edit stability run (500 items × 5 ops): **60.4% of surface-level edits (not guaranteed paraphrases) change the full semantic ID, 27.4% flip level 0** (mean cos 0.992). Greedy keyword steering onto the high-traffic prefix: **30% ASR** (26% at cos ≥ 0.95), mean 1.8 edits; matched random-keyword control arm (same items/rounds/budget): **36%** (18/50, CI ≈ 24–50%) — targeting does not beat random words, so text-level steering reflects boundary proximity + generic stuffing, not aimed steering. |
-| Samin | Encoder-consistency harness (fresh vs cached encodings: median cos 0.9999999, full-ID agreement 98.5% — the noise floor for all flip rates); target-prefix vocabulary mining (top-1% popular items on code 208); attack-examples write-up (`text_eval_examples.md`); Windows torch.compile/triton workaround for upstream training entry points. |
-
-## Week 7 (Oct 27 – Nov 2) — TIGER baseline & interim assembly — *pivot checkpoint Nov 2*
+## Week 6 (Oct 20 – 26): Text-level attack v1 & measured sensitivity
 
 | Person | Work |
 |---|---|
-| Samin | TIGER decoder baseline on the published tokenizer (`configs/decoder_beauty_fyp.gin`, 10k iterations, t5-small-scale T5): **Recall@1 0.023 / Recall@5 0.053 / Recall@10 0.073 / NDCG 0.045** (semantic-ID-level, i.e. prefix hits over collision groups — not comparable with the paper's item-level numbers); checkpoint archived (`artifacts/checkpoints/decoder/amazon/`); baseline numbers file (`artifacts/runs/decoder_baseline.json`); item-level re-evaluation of the same checkpoint (`fyp/eval/eval_decoder_itemlevel.py`, 5 seeds, n = 22,363 test users, prefix numbers reproduced as a regression gate): **item-strict Recall@10 0.0165 / item-fractional 0.0207** — prefix-level metrics overstate item-level retrieval ≈3.5×, so the baseline sits below the TIGER paper at item level (`artifacts/runs/decoder_itemlevel.json`). |
-| Ibrahim | Interim results assembly: audit tables + figures, white-box and text-level attack tables, calibration arguments (cosine budget, margin-threshold caveats), threats-to-validity section. Post-audit corrections folded into all docs: retriever metrics relabelled prefix-level (the "at/above TIGER" comparison removed), one-step-flip claim corrected (≥ 95% → measured 97.1%), limitations list refreshed (bisection resolution, item-level metrics, steering-control outcome, seller-controlled fields). |
-| Both | Interim report draft: motivation, methodology, preliminary results, revised plan & risk management. **Literature review + annotated bibliography delivered** (`docs/literature_review.md`, interim report §2; references verified). **Nov 2 pivot checkpoint:** embedding-space *and* text-level feasibility confirmed; downstream impact on the trained retriever is the open question for Phase 4. |
+| Ibrahim | Rule-based text operators (`fyp/attack/text_edits.py`): benign edits (spelling variants, word shuffle/dropout, case/punctuation, field reorder) and seller steering edits (keyword append/prepend, brand swap). Benign-edit stability run (500 items × 5 ops): **60.4% of surface-level edits (not guaranteed paraphrases) change the full semantic ID, 27.4% flip level 0** (mean cos 0.992). Greedy target-guided keyword steering onto the high-traffic prefix: **30% ASR** (15/50; 26% at cos ≥ 0.95), mean 1.8 edits. |
+| Samin | Encoder-consistency harness (fresh vs cached encodings: median cos 0.9999999, full-ID agreement 98.5%, the noise floor for all flip rates); target-prefix vocabulary mining (top-1% popular items on code 208); attack-examples write-up (`text_eval_examples.md`). Audit support: 25-iteration **bisection on the final search segment** measures the real flip distance (median **0.0044**, p95 0.032, p99 0.063, 75.1% within ‖δ‖ ≤ 0.01), replacing the 0.05 step-size upper bound; exact first-step flip share **97.1%**; bisection histogram added to the figure suite; regression gate (re-run reproduces all committed audit numbers exactly). |
+
+## Week 7 (Oct 27 – Nov 2): TIGER baseline & interim assembly (*pivot checkpoint Nov 2*)
+
+| Person | Work |
+|---|---|
+| Samin | Windows torch.compile/triton workaround for the upstream training entry points; TIGER decoder baseline on the published tokenizer (`configs/decoder_beauty_fyp.gin`, 10k iterations, t5-small-scale T5): **Recall@1 0.023 / Recall@5 0.053 / Recall@10 0.073 / NDCG 0.045** (semantic-ID-level, i.e. prefix hits over collision groups, not comparable with the paper's item-level numbers); checkpoint archived (`artifacts/checkpoints/decoder/amazon/`); item-level re-evaluation of the same checkpoint (`fyp/eval/eval_decoder_itemlevel.py`, 5 seeds, n = 22,363 test users, prefix numbers reproduced as a regression gate): **item-strict Recall@10 0.0165 / item-fractional 0.0207**; prefix-level metrics overstate item-level retrieval ≈3.5×, so the baseline sits below the TIGER paper at item level (`artifacts/runs/decoder_itemlevel.json`). |
+| Ibrahim | Random-vocabulary control arm for the text steering (same items, rounds, budget and target-guided search): **36%** (18/50, CI ≈ 24–50%), so the mined vocabulary adds nothing over random words; the no-search baseline is left for later. Interim results assembly: audit tables + figures, white-box and text-level attack tables, calibration arguments (cosine budget, margin-threshold caveats), threats-to-validity section. Post-audit corrections folded into all docs: retriever metrics relabelled prefix-level (the "at/above TIGER" comparison removed), one-step-flip claim corrected (≥ 95% → measured 97.1%), limitations list refreshed (bisection resolution, item-level metrics, steering-control outcome, seller-controlled fields). |
+| Both | Interim report draft: motivation, methodology, preliminary results, revised plan & risk management. **Literature review + annotated bibliography verified and finalised** (`docs/literature_review.md`, interim report §2). **Nov 2 pivot checkpoint:** embedding-space *and* text-level feasibility confirmed; downstream impact on the trained retriever is the open question for Phase 4. |
 
 ## Contribution summary
 
@@ -84,10 +85,15 @@ equal; each week lists the concrete artefacts produced.
 
 ## After Week 7 (per plan §4)
 
-- Own RQ-VAE training + audit replication on it; paper-scale retriever
-  (t5-base, full iterations) on the cluster.
-- Attack v2: LLM paraphrases / rewrite search on the `text -> text` operator
-  interface; HotFlip-style token substitution.
-- Phase 4: downstream impact study on the trained retriever (Δ exposure of
-  steered items, Δ Recall@K/NDCG@K).
-- Interim report due **Dec 21, 2026**.
+- **Weeks 8–14 (Nov 3 – Dec 21):** interim report writing from the frozen
+  results; experiment scope frozen Dec 5; optional small downstream pilot on
+  the trained retriever before the freeze. **Interim report due Dec 21,
+  2026.**
+- **Phase 4 (from Jan 5, 2027):** downstream impact study on the trained
+  retriever (Δ exposure of steered items, Δ Recall@K/NDCG@K); attack v2 (LLM
+  paraphrases / rewrite search on the `text -> text` operator interface;
+  HotFlip-style token substitution); text-steering no-search baseline.
+- **Phase 5:** defences (margin regularisation, stochastic quantization,
+  drift detection) with adaptive re-attack.
+- **Model track, alongside:** own RQ-VAE training + audit replication on it;
+  paper-scale retriever (t5-base, full iterations) on the cluster.

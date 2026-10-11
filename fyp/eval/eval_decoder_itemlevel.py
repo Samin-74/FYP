@@ -12,8 +12,8 @@ three ways on the SAME test split:
 - ``prefix``: the upstream criterion, reproduced as a regression gate (must
   match artifacts/runs/decoder_baseline.json within sampling noise).
 - ``item_strict``: prefix hit AND the target's prefix is unique in the
-  catalogue (group size 1) — the generated ID then identifies the item.
-- ``item_fractional``: a prefix hit is credited 1/group_size — the expected
+  catalogue (group size 1), so the generated ID then identifies the item.
+- ``item_fractional``: a prefix hit is credited 1/group_size, the expected
   item-level recall if the platform breaks ties uniformly at random inside a
   collision group. ``item_strict`` <= true item-level <= ``prefix``; the
   fractional variant is the point estimate under a stated tie-breaking rule.

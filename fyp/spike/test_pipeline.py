@@ -31,7 +31,7 @@ CHECKS = []
 
 def check(name: str, ok: bool, detail: str = ""):
     CHECKS.append((name, ok))
-    print(f"  [{'PASS' if ok else 'FAIL'}] {name}" + (f" — {detail}" if detail else ""))
+    print(f"  [{'PASS' if ok else 'FAIL'}] {name}" + (f": {detail}" if detail else ""))
 
 
 def main() -> int:

@@ -67,7 +67,7 @@ def codebook_dist(layer, r: torch.Tensor) -> torch.Tensor:
 def semantic_ids_and_margins(model: RqVae, x: torch.Tensor, batch: int = BATCH):
     """Compute semantic IDs and per-level boundary margins for a batch of embeddings.
 
-    Returns (sem_ids, margins, d1s): (L, B) tensors — assigned code, boundary
+    Returns (sem_ids, margins, d1s): (L, B) tensors: assigned code, boundary
     margin (d2 - d1), and nearest-codeword distance d1, all in the upstream
     squared-L2 residual space.
     """

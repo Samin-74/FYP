@@ -1,4 +1,4 @@
-"""Text-level evaluation — the first real-text results (interim report).
+"""Text-level evaluation: the first real-text results (interim report).
 
 All prior numbers are embedding-space: the attacker moves the Sentence-T5
 vector directly. This runner connects the audit to actual listing text.
@@ -8,15 +8,15 @@ Experiment A (benign-edit stability / paraphrase calibration):
   (fyp.attack.text_edits.BENIGN_OPS). Each edited text is re-encoded with the
   same sentence-t5-xxl encoder and re-quantized with the same RQ-VAE. We report
   per-operator cosine to the original embedding and semantic-ID flip rates,
-  plus flip rate binned by cosine — this calibrates the attack's cos >= 0.95
+  plus flip rate binned by cosine, which calibrates the attack's cos >= 0.95
   budget against real text changes (the audit shows 48.5% of items already
   have a *different* product within cos 0.95, so the budget is weak).
 
 Experiment B (greedy text steering):
   For M near-boundary items, greedily append/prepend seller-vocabulary
   keywords (mined from popular items already on the high-traffic level-0
-  prefix, plus PROMO_PHRASES) to steer the item onto that prefix — the text
-  side of the white-box `traffic_prefix` goal. Reports text-level ASR, the
+  prefix, plus PROMO_PHRASES) to steer the item onto that prefix (the text
+  side of the white-box `traffic_prefix` goal). Reports text-level ASR, the
   cosine cost of successful rewrites, and example rewrites for the report.
 
 Experiment B-control (random-keyword steering):
@@ -24,9 +24,11 @@ Experiment B-control (random-keyword steering):
   mined keywords are replaced by 12 words drawn uniformly at random from
   catalogue-wide title vocabulary (targeted words and promo-phrase words
   excluded; the PROMO_PHRASES tail is kept identical so the only difference
-  between the arms is targeted-vs-random keyword choice). Without this arm,
-  the share of the targeted ASR due to *targeting* rather than general ID
-  churn is unknown (docs/interim_checkpoint.md, limitation 10).
+  between the arms is targeted-vs-random keyword choice). Both arms use the
+  same target-guided greedy search, so this arm isolates the effect of the
+  mined *vocabulary*, not of targeting itself; a no-search arm (random
+  keywords without target-guided selection) is needed for that
+  (docs/interim_checkpoint.md, limitation 10).
 
 Outputs:
   artifacts/runs/text_eval.json          headline numbers
@@ -74,7 +76,7 @@ _COS_BINS = [0.0, 0.9, 0.95, 0.98, 0.99, 1.001]
 
 
 def load_encoder():
-    """The same encoder as prepare_data (sentence-t5-xxl, fp16 — see fyp/README)."""
+    """The same encoder as prepare_data (sentence-t5-xxl, fp16; see fyp/README)."""
     from sentence_transformers import SentenceTransformer
 
     return SentenceTransformer(
@@ -346,7 +348,7 @@ def run(n_benign=500, n_attack=50, max_rounds=5, seed=0, checkpoint=str(CHECKPOI
     ex_lines = ["# Text steering examples (greedy keyword edits)", ""]
     for r in sorted(ok, key=lambda r: -r["cos_to_original"])[:10]:
         ex_lines += [
-            f"## item {r['item_id']} — cos {r['cos_to_original']:.3f}, {r['rounds']} rounds",
+            f"## item {r['item_id']}: cos {r['cos_to_original']:.3f}, {r['rounds']} rounds",
             f"- original: {parse(r['original']).title if parse(r['original']) else r['original']}",
             f"- rewrite:  {parse(r['final']).title if parse(r['final']) else r['final']}",
             "",

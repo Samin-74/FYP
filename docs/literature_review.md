@@ -1,9 +1,10 @@
 # Literature Review & Annotated Bibliography
 
-**Status:** Phase 0 deliverable; feeds interim report §2 (literature review).
+**Status:** Phase 0 deliverable (drafted Weeks 1–2, verified and finalised
+Week 7); feeds interim report §2 (literature review).
 **Provenance:** references identified during the project and the pre-interim
-audit; every entry verified against the source (arXiv listing /
-ACM DL / project page). The positioning claim in §6 reflects
+audit; every entry (title, author order, venue) verified against the source
+(arXiv listing / ACM DL / project page). The positioning claim in §6 reflects
 this non-exhaustive search and must be re-checked before the final report
 (plan §1).
 
@@ -32,7 +33,7 @@ this non-exhaustive search and must be re-checked before the final report
   generative ones.
 
 - **Lee, D., Kim, C., Kim, S., Cho, M., & Han, W.-S. (2022).** *Autoregressive
-  Image Generation with Residual Quantization* (RQ-VAE). CVPR 2022.
+  Image Generation using Residual Quantization* (RQ-VAE). CVPR 2022.
   arXiv:2203.01941.
   Origin of residual quantization: a feature map is approximated by a stack of
   discrete codes, each level quantising the residual of the previous one.
@@ -51,19 +52,20 @@ this non-exhaustive search and must be re-checked before the final report
   motivates our checkpoint-robustness replication (a second, undocumented
   high-entropy checkpoint) and the margin-regularised-defence idea in Phase 5.
 
-- **Botta, E. (2026).** *RQ-VAE-Recommender* (software, MIT).
-  github.com/EdoardoBotta/RQ-VAE-Recommender.
+- **Botta, E. (2026).** *RQ-VAE Recommender* (software, v1.0.1, MIT).
+  doi:10.5281/zenodo.22076163; github.com/EdoardoBotta/RQ-VAE-Recommender.
   Open-source reproduction of TIGER-style RQ-VAE tokenization + T5 generative
   retrieval on Amazon data; ships trained RQ-VAE checkpoints.
   *Relevance:* vendored unmodified as our upstream (see
   THIRD_PARTY_NOTICES.md); all our audits run on its published checkpoint and
   its decoder/evaluation code paths.
 
-## 2. Evaluating semantic-ID tokenizers
+## 2. Evaluating and stabilising semantic-ID tokenizers
 
-- **Zhang, Q., et al. (2026).** *Faithful Evaluation of Semantic-ID Tokenizers
-  for Generative Recommendation.* arXiv:2605.25330 (v2, Aug 2026; v1 title:
-  *How Reliable Are Semantic-ID Tokenizer Comparisons in Generative
+- **Zhang, Q., Szymanski, L., Zhang, H., & Deng, J. D. (2026).** *Faithful
+  Evaluation of Semantic-ID Tokenizers for Generative Recommendation.*
+  CIKM 2026. arXiv:2605.25330 (v1 May 2026, v2 Aug 2026; v1 title: *How
+  Reliable Are Semantic-ID Tokenizer Comparisons in Generative
   Recommendation?*).
   Shows SID-level evaluation is faithful only when each ID uniquely identifies
   one item: measured collision rates reach 30.52% across five tokenizers and
@@ -78,6 +80,21 @@ this non-exhaustive search and must be re-checked before the final report
   the same style of correction (unique-ID credit and 1/group-size credit)
   applied to our trained decoder, whose upstream metric is SID-level only.
 
+- **Wang, X., Wang, J., Wang, Z., Bian, W., & Zhang, G. (2026).** *Decoupled
+  Residual Quantization for Robust Semantic IDs in Recommendation.*
+  arXiv:2606.01844.
+  Names unstable decision boundaries (with codebook underutilisation and
+  geometric distortion) as a cause of poor semantic-ID tokenizers, measures
+  *expected codeword confusion under retrieval-time perturbation*, and
+  proposes Decoupled Residual Quantization (DRQ), which separates continuous
+  geometry reconstruction from discrete distribution matching; evaluated on
+  one proprietary industrial dataset.
+  *Relevance:* the closest tokenizer-side work. It treats boundary
+  instability as a *robustness* problem under random perturbation, not as an
+  attack surface a seller can exploit. It is a candidate defence baseline for
+  Phase 5, and its confusion diagnostic is a natural companion to our
+  boundary-margin audit.
+
 ## 3. Attacks on recommender systems
 
 - **Wang, Z., et al. (2024).** *Poisoning Attacks and Defenses in Recommender
@@ -86,7 +103,7 @@ this non-exhaustive search and must be re-checked before the final report
   pipeline (goals → capabilities → victim architecture → strategy) and
   classifies defences into poisoning-data filtering and robust training.
   *Relevance:* threat-model scaffolding. In its taxonomy our attack is
-  provider-side item promotion with listing-edit capability only — no fake
+  provider-side item promotion with listing-edit capability only: no fake
   users, no interaction injection, no ranker access.
 
 - **Oh, S., Verma, G., & Kumar, S. (2024).** *Adversarial Text Rewriting for
@@ -95,14 +112,15 @@ this non-exhaustive search and must be re-checked before the final report
   fine-tuning or in-context learning) to unfairly uprank products in
   text-aware recommenders; rewrites are judged realistic by human evaluators.
   Demonstrated on 3 datasets and 4 recommender approaches.
-  *Relevance:* closest prior work — same seller threat model. Differences: ATR
-  attacks continuous text representations end to end, while we target the
-  *discrete quantization layer* of a generative retriever (codebook
-  boundaries, ID collisions); our current edits are greedy keyword stuffing,
-  with LLM-faithful rewrites planned as attack v2.
+  *Relevance:* closest prior work, with the same seller threat model.
+  Differences: ATR attacks continuous text representations end to end, while
+  we target the *discrete quantization layer* of a generative retriever
+  (codebook boundaries, ID collisions); our current edits are greedy keyword
+  stuffing, with LLM-faithful rewrites planned as attack v2.
 
-- **Wang, Z., et al. (2025).** *ID-Free Not Risk-Free: LLM-Powered Agents
-  Unveil Risks in ID-Free Recommender Systems.* arXiv:2409.11690.
+- **Wang, Z., Gao, M., Yu, J., Gao, X., Nguyen, Q. V. H., Sadiq, S., & Yin, H.
+  (2024).** *ID-Free Not Risk-Free: LLM-Powered Agents Unveil Risks in ID-Free
+  Recommender Systems.* arXiv:2409.11690 (v3, Apr 2025).
   Deploys LLM agents that synthesise deceptive item descriptions imitating
   popular items (popularity extraction + multi-agent refinement) to promote
   low-quality items in ID-free recommenders under black-box settings, and
@@ -111,8 +129,21 @@ this non-exhaustive search and must be re-checked before the final report
   surface; their black-box setting matches our seller model, and their
   detection method is a defence-side baseline for Phase 5.
 
-- **Deldjoo, Y., et al. (2025).** *Poison-RAG: Adversarial Data Poisoning
-  Attacks on Retrieval-Augmented Recommender Systems.* arXiv:2501.11759.
+- **Zhao, Y., Chen, T., Yu, J., Wang, Z., Cui, L., & Yin, H. (2026).**
+  *Prompt-Unknown Promotion Attacks against LLM-based Sequential Recommender
+  Systems.* SIGIR 2026. arXiv:2604.23640.
+  Fully black-box promotion attack on LLM-based sequential recommenders:
+  recovers the unknown system prompt by LLM-driven evolutionary search, trains
+  a surrogate, then combines semantically constrained rewrites of the target
+  item's text with surrogate-generated poisoning sequences.
+  *Relevance:* the most recent seller-side text-rewrite attack. It targets
+  LLM-based recommenders and needs injected interaction sequences; our attack
+  edits listing text only and targets the semantic-ID tokenizer of a
+  generative retriever.
+
+- **Nazary, F., Deldjoo, Y., & Di Noia, T. (2025).** *Poison-RAG: Adversarial
+  Data Poisoning Attacks on Retrieval-Augmented Generation in Recommender
+  Systems.* arXiv:2501.11759.
   Manipulates item metadata (tags, descriptions) with LLM-generated content to
   promote long-tail items or demote popular ones in RAG-based recommenders;
   local (per-item BERT-embedding-guided) modifications outperform global ones
@@ -122,7 +153,8 @@ this non-exhaustive search and must be re-checked before the final report
   tokenizer), but their popularity-susceptibility finding contrasts with our
   margin-vs-popularity null result and is worth a discussion paragraph.
 
-- **Deldjoo, Y., et al. (2025).** *Provider-Side Data Poisoning in
+- **Nazary, F., Deldjoo, Y., Di Noia, T., & Di Sciascio, E. (2025).**
+  *Stealthy LLM-Driven Data Poisoning Attacks Against Embedding-Based
   Retrieval-Augmented Recommender Systems.* arXiv:2505.05196.
   Formalises provider-side attacks under token-edit and semantic-similarity
   constraints: adding emotional keywords or borrowing phrases from related
@@ -148,14 +180,15 @@ this non-exhaustive search and must be re-checked before the final report
   Adversarial Training in NLP.* EMNLP 2020. arXiv:2005.05909.
   Modular framework decomposing attacks into goal function, constraints,
   transformation, and search.
-  *Relevance:* our edit operators and the plan's attack baselines (random
-  paraphrase, untargeted substitution) follow this decomposition; our
-  random-keyword control arm is the untargeted-substitution baseline the plan
-  §6 calls for.
+  *Relevance:* our edit operators and the plan's attack baselines follow this
+  decomposition. In its terms, our random-vocabulary control changes the
+  *transformation* (keyword list) while keeping the target-guided *search*;
+  the untargeted baseline the plan §6 calls for (no target-guided search)
+  is still to be run.
 
 ## 5. Quantization and robustness (defence side)
 
-- **Dong, Z., & Mao, K. (2023).** *Adversarial Defenses via Vector
+- **Dong, Z., & Mao, Y. (2023).** *Adversarial Defenses via Vector
   Quantization.* arXiv:2305.13651.
   Uses a vector quantizer as a preprocessing defence for image classifiers
   (patched / sliding-window RandDisc), with certifiable robust accuracy from
@@ -166,35 +199,40 @@ this non-exhaustive search and must be re-checked before the final report
   and, methodologically, the need for adaptive re-attack evaluation of any
   defence we propose.
 
-## 6. Positioning — the gap this project occupies
+## 6. Positioning: the gap this project occupies
 
 Attacks on recommenders have targeted the ranker or the training data
 (profile injection, poisoning; §3 survey). The closest text-rewriting works
-(ATR; ID-Free Not Risk-Free; Poison-RAG; provider-side RAG poisoning)
-manipulate *continuous* text representations of text-aware or RAG-based
-recommenders. SID evaluation work (Zhang 2026) identifies the
-collision-inflation problem but does not exploit it adversarially.
-VQ-as-defence work is in computer vision. We found **no published work that
-attacks or defends the RQ-VAE quantization layer of a generative recommender
-itself**: its boundary geometry as an attack surface, full-ID collisions as an
-exploit mechanism (a collision makes an item indistinguishable from a
-bestseller at generation time), or tokenizer-level defences. That is the niche
-of this project. This claim is based on a targeted, non-exhaustive search and
-will be re-checked before the final report.
+(ATR; ID-Free Not Risk-Free; Prompt-Unknown Promotion Attacks; Poison-RAG;
+stealthy RAG poisoning) manipulate *continuous* text representations of
+text-aware, LLM-based or RAG-based recommenders. On the tokenizer side, SID
+evaluation work (Zhang et al. 2026) identifies the collision-inflation
+problem, and DRQ (Wang et al. 2026) treats unstable code boundaries as a
+robustness issue under random perturbation, but neither exploits them
+adversarially. VQ-as-defence work is in computer vision. We found **no
+published work that attacks or defends the RQ-VAE quantization layer of a
+generative recommender against a strategic seller**: its boundary geometry
+as an attack surface, full-ID collisions as an exploit mechanism (a collision
+makes an item indistinguishable from a bestseller at generation time), or
+tokenizer-level defences against such edits. That is the niche of this
+project. This claim is based on a targeted, non-exhaustive search and will
+be re-checked before the final report.
 
 ## References
 
-1. Rajput et al. 2023 — arXiv:2305.05065 (NeurIPS 2023)
-2. Singh et al. 2023 — arXiv:2306.08121
-3. Lee et al. 2022 — arXiv:2203.01941 (CVPR 2022)
-4. Wang et al. 2024 (LETTER) — arXiv:2405.07314 (CIKM 2024)
-5. Botta 2026 — github.com/EdoardoBotta/RQ-VAE-Recommender (MIT)
-6. Zhang et al. 2026 — arXiv:2605.25330
-7. Wang et al. 2024 (survey) — arXiv:2406.01022
-8. Oh, Verma & Kumar 2024 (ATR) — arXiv:2408.00312 (CIKM 2024)
-9. Wang et al. 2025 (ID-Free Not Risk-Free) — arXiv:2409.11690
-10. Deldjoo et al. 2025 (Poison-RAG) — arXiv:2501.11759
-11. Deldjoo et al. 2025 (provider-side RAG poisoning) — arXiv:2505.05196
-12. Ebrahimi et al. 2018 (HotFlip) — arXiv:1712.06751 (ACL 2018)
-13. Morris et al. 2020 (TextAttack) — arXiv:2005.05909 (EMNLP 2020)
-14. Dong & Mao 2023 — arXiv:2305.13651
+1. Rajput et al. 2023 (TIGER): arXiv:2305.05065 (NeurIPS 2023)
+2. Singh et al. 2023: arXiv:2306.08121
+3. Lee et al. 2022 (RQ-VAE): arXiv:2203.01941 (CVPR 2022)
+4. Wang et al. 2024 (LETTER): arXiv:2405.07314 (CIKM 2024)
+5. Botta 2026 (RQ-VAE Recommender, v1.0.1): doi:10.5281/zenodo.22076163 (MIT)
+6. Zhang, Szymanski, Zhang & Deng 2026: arXiv:2605.25330 (CIKM 2026)
+7. Wang, Wang, Wang, Bian & Zhang 2026 (DRQ): arXiv:2606.01844
+8. Wang et al. 2024 (survey): arXiv:2406.01022
+9. Oh, Verma & Kumar 2024 (ATR): arXiv:2408.00312 (CIKM 2024)
+10. Wang et al. 2024 (ID-Free Not Risk-Free): arXiv:2409.11690
+11. Zhao et al. 2026 (Prompt-Unknown Promotion Attacks): arXiv:2604.23640 (SIGIR 2026)
+12. Nazary, Deldjoo & Di Noia 2025 (Poison-RAG): arXiv:2501.11759
+13. Nazary, Deldjoo, Di Noia & Di Sciascio 2025 (stealthy RAG poisoning): arXiv:2505.05196
+14. Ebrahimi et al. 2018 (HotFlip): arXiv:1712.06751 (ACL 2018)
+15. Morris et al. 2020 (TextAttack): arXiv:2005.05909 (EMNLP 2020)
+16. Dong & Mao 2023: arXiv:2305.13651

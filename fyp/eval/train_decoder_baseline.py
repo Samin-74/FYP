@@ -1,7 +1,7 @@
 """Launch upstream TIGER decoder (retriever) training on Windows.
 
 Upstream ``RQ-VAE-Recommender-main/train_decoder.py`` calls
-``torch.compile(model)``, which requires triton — unavailable on Windows — so
+``torch.compile(model)``, which requires triton (unavailable on Windows), so
 compilation is patched to eager mode (same numerics, somewhat slower). The
 upstream tree is never edited; this is a runtime monkeypatch, per the repo
 rules in fyp/README.md.

@@ -1,7 +1,7 @@
 """Black-box query-only steering stub (plan section 3.6).
 
 Threat model: the seller queries only the tokenizer (item text in, semantic ID
-out) — no gradients, no codebook access. This stub searches in embedding space
+out): no gradients, no codebook access. This stub searches in embedding space
 with random/local perturbations using only ``get_semantic_ids`` as the oracle,
 to be replaced by an LLM-rewrite evolutionary/bandit search that proposes
 text edits. The oracle interface is identical either way.

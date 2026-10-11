@@ -71,7 +71,7 @@ def _patch_encoder_batch_size() -> None:
         if not hasattr(self, "_cached_st_model"):
             from sentence_transformers import SentenceTransformer
 
-            # xxl is ~19 GB in fp32 — does not fit a 16 GB card; fp16 required.
+            # xxl is ~19 GB in fp32 and does not fit a 16 GB card; fp16 required.
             self._cached_st_model = SentenceTransformer(
                 "sentence-transformers/sentence-t5-xxl",
                 model_kwargs={"dtype": "float16"},

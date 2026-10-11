@@ -7,7 +7,7 @@
 
 - Sentence-T5 embedding norm: p1 0.9996, p50 1.0000, p99 1.0004 (attacks are projected back onto each item's original norm).
 - Cosine to nearest *other* catalogue item: p5 0.906, p50 0.949, p95 0.983.
-- Items whose nearest distinct product already has cos >= 0.95: **48.5%** — if large, cos >= 0.95 alone does not guarantee the listing still describes the same product.
+- Items whose nearest distinct product already has cos >= 0.95: **48.5%**. If this is large, cos >= 0.95 alone does not guarantee the listing still describes the same product.
 
 ## Boundary margins (squared L2 in residual space; margin = d2 - d1)
 
@@ -36,9 +36,9 @@ Note: "within eps x median" is relative to the level's own median margin, so it 
 
 ## Figures
 
-- `fig_margin_hist_by_level.png` — margin distributions.
-- `fig_margin_cdf_by_level.png` — within-factor CDF.
-- `fig_eps_threshold_curve.png` — epsilon-threshold curve.
-- `fig_collision_group_sizes.png` — collision group sizes.
-- `fig_margin_vs_desclen.png` — relative margin vs description length.
-- `fig_sensitivity_bisect_hist.png` — measured flip-distance distribution (bisection).
+- `fig_margin_hist_by_level.png`: margin distributions.
+- `fig_margin_cdf_by_level.png`: within-factor CDF.
+- `fig_eps_threshold_curve.png`: epsilon-threshold curve.
+- `fig_collision_group_sizes.png`: collision group sizes.
+- `fig_margin_vs_desclen.png`: relative margin vs description length.
+- `fig_sensitivity_bisect_hist.png`: measured flip-distance distribution (bisection).

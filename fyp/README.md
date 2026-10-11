@@ -1,4 +1,4 @@
-# FYP — Manipulability Audit Pipeline
+# FYP: Manipulability Audit Pipeline
 
 Adversarial steering of RQ-VAE semantic tokenizers in generative recommender
 systems. This package sits **on top of** `RQ-VAE-Recommender-main/` (installed
@@ -23,7 +23,7 @@ the model track and attack track can run in parallel.
 | `fyp/spike/` | end-to-end verification + throwaway experiments |
 | `artifacts/` | every pipeline output (embeddings, IDs, audit tables/figures, runs) |
 | `configs/` | our gin configs (upstream defaults overridden: paths, wandb off) |
-| `data_raw_2023/` | 2023 Amazon dumps — secondary/fallback only |
+| `data_raw_2023/` | 2023 Amazon dumps, secondary/fallback only |
 
 ## Environment
 
@@ -134,34 +134,34 @@ test_pipeline ── end-to-end regression check (writes nothing)
 
 ## Metric definitions (plan §3.5)
 
-- **Boundary margin** — for item embedding `x`, level-k residual `r_k`, and
+- **Boundary margin**: for item embedding `x`, level-k residual `r_k`, and
   squared-L2 distances to the level-k codebook: `d2 - d1` where `d1 < d2` are
   the two nearest codeword distances (same assignment rule as the upstream
   quantizer). Small margin = near a Voronoi boundary.
-- **Sensitivity** — smallest input-space L2 perturbation that flips the level-k
+- **Sensitivity**: smallest input-space L2 perturbation that flips the level-k
   code, estimated by *descending* the margin gradient w.r.t. `x` (staying on
   the original norm sphere) until the argmin changes. `inf` if the budget is
   exhausted. Because the 0.05 search step is coarse, `run_audit` also reports a
   **measured flip distance**: a 25-iteration bisection on the segment between
   the last non-flipped and first flipped iterate (still an upper bound on the
-  true minimum — heuristic direction, distance along the search path).
-- **Item-level retriever metrics** — the upstream decoder emits only 3-code
+  true minimum: heuristic direction, distance along the search path).
+- **Item-level retriever metrics**: the upstream decoder emits only 3-code
   prefixes, so a hit identifies a collision group. `eval_decoder_itemlevel`
   reports: `prefix` (upstream group-hit criterion, regression gate),
   `item_strict` (hit only if the target's prefix is unique in the catalogue),
-  and `item_fractional` (hit credited 1/group_size — expected recall under
+  and `item_fractional` (hit credited 1/group_size, the expected recall under
   uniform tie-breaking; the CCE-style correction of arXiv:2605.25330).
-- **Collisions** — `collision_rate` = 1 − unique IDs / items (items needing a
+- **Collisions**: `collision_rate` = 1 − unique IDs / items (items needing a
   dedup token > 0); `frac_items_in_colliding_groups` = items whose full ID is
   shared with at least one other item.
-- **Embedding geometry** — norm percentiles and cosine to the nearest *other*
+- **Embedding geometry**: norm percentiles and cosine to the nearest *other*
   catalogue item; calibrates whether cos ≥ 0.95 really preserves meaning.
-- **Steerability** — `exp(-sensitivity / median_sensitivity)` on items that
+- **Steerability**: `exp(-sensitivity / median_sensitivity)` on items that
   flip within budget, 0 otherwise.
 
 ## Dataset switching
 
-- **Classic Beauty (primary):** nothing to do — `prepare_data` auto-downloads.
+- **Classic Beauty (primary):** nothing to do; `prepare_data` auto-downloads.
 - **2023 Beauty (fallback):** if the Google Drive download fails, the same
   command rebuilds the raw layout from `data_raw_2023/` (5-core filter,
   chronological ordering) and reuses the upstream processor.
@@ -173,10 +173,10 @@ test_pipeline ── end-to-end regression check (writes nothing)
 
 ```bash
 # tokenizer (or reuse the published checkpoint: RQ-VAE-Recommender-main/
-# trained_models/rqvae_amazon_beauty/checkpoint_399999.pt — already used above)
+# trained_models/rqvae_amazon_beauty/checkpoint_399999.pt, already used above)
 $PY RQ-VAE-Recommender-main/train_rqvae.py configs/rqvae_beauty_fyp.gin
 # retriever (t5-small locally; t5-base on the cluster). The launcher patches
-# torch.compile to eager — see "Known upstream issues" #5.
+# torch.compile to eager; see "Known upstream issues" #5.
 $PY -m fyp.eval.train_decoder_baseline configs/decoder_beauty_fyp.gin
 ```
 
@@ -188,23 +188,23 @@ The decoder prints hits@1/5/10 + NDCG over the full eval split every
 
 ## Known upstream issues & our workarounds (upstream files untouched)
 
-1. **sentence-transformers 5.x incompatibility** — upstream `process()` passes a
+1. **sentence-transformers 5.x incompatibility**: upstream `process()` passes a
    raw pandas Series to `SentenceTransformer.encode(sentences=...)`; ST 5.7
    renamed the argument to `inputs` and rejects Series. Fixed at runtime by
    monkeypatching `PreprocessingMixin._encode_text_feature` in
    `fyp/common/prepare_data.py` (list conversion + positional call).
-2. **sentence-t5-xxl OOM on 16 GB** — xxl is ~19 GB in fp32. We load it in
+2. **sentence-t5-xxl OOM on 16 GB**: xxl is ~19 GB in fp32. We load it in
    fp16 (`model_kwargs={"dtype": "float16"}`), batch size 32. Embedding
    differences vs fp32 are ~1e-3 cosine; the audit always uses the same
    encoder, so comparisons are internally consistent.
-3. **P5_data.zip ships string user ids** — upstream `train_test_split` does
+3. **P5_data.zip ships string user ids**: upstream `train_test_split` does
    `map(int, ...)` over every token and crashes. `prepare_data` downloads and
    extracts the zip itself (same torch_geometric helpers), then rewrites
    `sequential_data.txt` with integer user ids (stable mapping) before the
    upstream processor runs.
-4. **Google Drive extract file-lock (Windows)** — the post-extract rename can
+4. **Google Drive extract file-lock (Windows)**: the post-extract rename can
    hit a transient `PermissionError`; the download retries up to 3 times.
-5. **`torch.compile` needs triton (no Windows build)** — upstream
+5. **`torch.compile` needs triton (no Windows build)**: upstream
    `train_decoder.py` compiles the model and `modules/rqvae.py` decorates a
    method with `@torch.compile(...)`; both crash on Windows. The launcher
    `fyp/eval/train_decoder_baseline.py` patches `torch.compile` to eager mode
